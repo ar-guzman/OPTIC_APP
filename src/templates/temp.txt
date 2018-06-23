@@ -1,0 +1,11 @@
+<script id="config" type="text/json">
+        {
+            "models": {},
+            "collections": {},
+            "views": {},
+            "router": null,
+            "eventBus": {},
+            "apiLogin": "{% url 'api-token' %}",
+            "apiRoot": "/api/v1/"
+        }
+</script>

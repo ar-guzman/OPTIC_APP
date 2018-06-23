@@ -1,0 +1,18 @@
+<div class="modal-header">
+    <h1> Editar Proveedor</h1>
+    <button class="close" data-target="#modal-message"><i class="fa fa-window-close"></i></button>
+</div>
+<div class="modal-body wrapper">
+    {% if proveedor%}
+        {% include 'snippets/forms/provForm.html' %}
+    {% else %}
+        <div class="left-div">
+            <img alt="Bueno" src="/static/images/err.png">
+        </div>
+        <div class="right-div">
+            <p>Esto es vergonzoso, no debió suceder.</p>
+        </div>
+    {% endif %}
+</div>
+
+

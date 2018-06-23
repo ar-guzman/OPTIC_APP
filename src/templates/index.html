@@ -1,0 +1,777 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, maximum-scale=1">
+    <meta name="description" content="Sistema de manejo de datos de optica ocular">
+    {% include 'snippets/favicon.html' %}
+    <title>Optica Ocular</title>
+    <!-- Bootstrap -->
+    <!-- CDN boostrap y font-awesome css -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css" integrity="sha384-5SOiIsAziJl6AWe0HWRKTXlfcSHKmYV4RBF18PPJ173Kzn7jzMyFuTtk8JA7QQG1" crossorigin="anonymous">
+    <!-- Jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- CDN JS jquery -->
+    <!--script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+    <!-- CSS base -->
+    <link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
+    <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet'>
+    <!-- CSS adicionales -->
+    {% block addcss %}{% endblock %}
+    <!-- JS adicionales -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.3.3/backbone-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.1.1/webcomponents-hi-sd-ce.js"></script>
+    <template id="orden-template">
+      <ul class="top-lvl-dd">
+        <li>
+          <button id="orden-aro">Orden aro</button>
+        </li>
+        <li>
+          <button>Orden completa</button>
+        </li>
+        <li>
+          <button>Orden lente</button>
+        </li>
+        <li>
+          <button>Orden reparación</button>
+        </li>
+      </ul>
+    </template>
+    <template id="table-template">
+      <link href="{% static 'css/table-sd.css' %}" rel="stylesheet">
+      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css"
+      integrity="sha384-5SOiIsAziJl6AWe0HWRKTXlfcSHKmYV4RBF18PPJ173Kzn7jzMyFuTtk8JA7QQG1"
+      crossorigin="anonymous">
+      <c-form class='table-header'>
+        <form>
+          <div class="f-left">
+            <label>Elementos:</label>
+            <select name="page_size">
+              <option value="15">15</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div class="f-right">
+            <input placeholder='Busqueda e.g.: 500' name='search'>
+            <button class='fa fa-search' type='submit'>
+          </div>
+          <div class="extra-filter"></div>
+        </form>
+      </c-form>
+      <table class="basic-lines">
+          <thead></thead>
+          <tbody></tbody>
+      </table>
+      <div class="table-footer">
+        <div></div>
+      </div>
+    </template>
+    <template id="input-template">
+      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css">
+      <style>
+
+        .titulo{
+          font-size: 3.5vh;
+          color: var(--inputc-title-color,#4682B4);
+          position: relative;
+        }
+
+        .titulo > span {
+          position: absolute;
+          right: 0;
+          line-height: inherit;
+          font-size: medium;
+          padding-top: 4px;
+        }
+
+        input, input:focus{
+          outline: none;
+          padding-left: 1vw;
+          border: 2px #4682B4 solid;
+          box-sizing: border-box;
+          font-weight: 600;
+          background-color: var(--inputc-input-bg,#fff);
+          color: var(--inputc-input-color,#fff);
+          border-radius: 5px;
+          width:  var(--inputc-input-width,100%);
+          height: 5vh;
+          margin: 0 1vh;
+          box-shadow: 0px 9px 12px -5px rgba(11,11,11,.75);
+        }
+
+        input[type="file"]::-webkit-file-upload-button{
+          height: 5vh;
+          border-radius: 5px;
+        }
+
+        input:focus{
+          background-color: var(--inputc-input-fbg,#021c2b);
+          color: var(--inputc-input-fcolor,#fc5f05);
+        }
+
+        input[type="datetime-local"]::-webkit-clear-button {padding:1px;}
+        input[type="datetime-local"]::-webkit-inner-spin-button { visibility: hidden;}
+
+        .success { --inputc-input-bg:#00ff8c;}
+        .error { --inputc-input-bg:#f94340;  }
+        .fa.fa-check-circle { color: #00ff8c;}
+        .fa.fa-times-circle { color: #f94340;}
+        select:focus,button:focus {outline:0;}
+
+        .legend{
+          font-size: 2vh;
+          color: var(--inputc-legend-color,#ccc);
+        }
+      </style>
+      <div class="titulo">
+        <label></label>
+        <span></span>
+      </div>
+      <input>
+      <label class="legend"></label>
+    </template>
+    <template id="newlente-template">
+      <c-form>
+        <form>
+          <h1><center>Nuevo lente</center></h1>
+          <hr class="linear" />
+          <div class="split">
+            <c-input
+            titulo = "Material del lente"
+            message = "Obligatorio, el material del lente en esta combinación debe ser obligatorio"
+            name = "material"
+            required
+            ></c-input>
+            <c-input
+            titulo = "Tipo del lente"
+            message = "Obligatorio, el material del lente en esta combinación debe ser obligatorio"
+            name = "tipo"
+            required
+            ></c-input>
+          </div>
+          <div class="split">
+            <c-select
+            titulo = "Filtros permitidos"
+            message = "Seleccione una lista de filtros que pueden ir con esta combinación"
+            name = "filtros"
+            ></c-select>
+            <c-input
+            titulo = "Color del lente"
+            message = "Obligatorio, el color del lente en esta combinación debe ser obligatorio"
+            required
+            name = "color"
+            ></c-input>
+          </div>
+          <div class="filtros"></div>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <template id="newempleado-template">
+      <c-form>
+        <form>
+          <h1><center>Nuevo empleado</center></h1>
+          <hr class="linear" />
+          <div class="split">
+            <c-input
+            titulo = "Nombre de usuario"
+            message = "El nombre de usuario es obligatorio, se aceptan letras, números, espacios, _, - y #"
+            pattern = "^[0-9A-za-z_#\-\.\s]+$"
+            name = "username"
+            required
+            ></c-input>
+            <c-input
+            titulo = "Correo electrónico"
+            message = "Opcional, el correo puede completarse luego"
+            name = "email"
+            tipo = "email"
+            ></c-input>
+          </div>
+          <div class='split'>
+            <c-input
+            titulo = "Nombre del empleado"
+            message = "Opcional, el nombre del empleado puede completarse luego"
+            name = "first_name"
+            ></c-input>
+            <c-input
+            titulo = "Apellido del empleado"
+            message = "Opcional, el apellido puede completarse luego"
+            name = "last_name"
+            ></c-input>
+          </div>
+          <div class='split'>
+            <c-input
+            titulo = "Dpi del empleado"
+            message = "Opcional, el dpi del empleado es opcional puede completarse luego"
+            name = "dpi"
+            ></c-input>
+            <c-input
+            titulo = "Teléfono"
+            message = "Opcional, el número de teléfono puede completarse luego"
+            name = "contact"
+            ></c-input>
+          </div>
+          <div class="split">
+            <c-select
+            titulo = "Sucursal asignada"
+            message = "Seleccione la sucursal a la que se asignara este trabajador"
+            show
+            name = "optica"
+            ></c-select>
+            <c-input
+            titulo = "Foto de perfil"
+            message = "Opcional, la fotografía puede actualizarse luego"
+            name = "photo"
+            tipo = "file"
+            ></c-input>
+          </div>
+          <div class="split">
+            <c-input
+            titulo = "Contraseña"
+            message = "Obligatorio, la contraseña debe ingresarse en este momento"
+            name = "password"
+            tipo = "password"
+            required
+            ></c-input>
+            <c-input
+            titulo = "Contraseña (nuevamente)"
+            message = "Ingrese la contraseña nuevamente "
+            name = "confirmation_password"
+            tipo = "password"
+            required
+            ></c-input>
+          </div>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <template id="newlaboratorio-template">
+      <c-form name="laboratorio">
+        <form>
+          <h1><center>Nuevo laboratorio<center></h1>
+          <hr class="linear" />
+          <c-input
+          message = "El nombre del laboratorio es obligatorio."
+          titulo = "Nombre del laboratorio"
+          name = "name"
+          required
+          ></c-input>
+          <c-input
+          titulo  = "Dirección del laboratorio"
+          name = "direction"
+          message = "La dirección es opcional; se aceptan letras|numeros|.|#|-|_ y espacios"
+          pattern = "^[0-9A-za-z_#\-\.\s]+$"></c-input>
+          <div class="split">
+            <c-input
+            message = "Este número de contacto es obligatorio."
+            titulo = "Número de contacto"
+            name = "contact_1"
+            required
+            pattern = "^[0-9]{8,8}$"
+            ></c-input>
+            <c-input
+            message = "Este número de contacto es opcional."
+            name = "contact_2"
+            titulo = "Número de contacto"
+            pattern = "^[0-9]{8,8}$"
+            ></c-input>
+          </div>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <template id="newaro-template">
+      <c-form>
+        <form>
+          <h1><center>Nuevo tipo de aro</center></h1>
+          <hr class="linear" />
+          <c-input titulo="Color del aro"
+          message="Obligatorio, el color del aro puede aceptar números, letras,#,_,-"
+          name="color"
+          pattern="^[0-9A-Za-z_\-\#]+$"
+          required
+          ></c-input>
+          <c-input titulo="Modelo del aro"
+            message="Obligatorio, el modelo del aro puede aceptar números, letras,#,_,-"
+            name="modelo"
+            pattern="^[0-9A-Za-z_\-\#]+$"
+            required
+            ></c-input>
+          <c-select titulo="Marca"
+          name="marca"
+          message="Obligatorio, seleccione una marca de la lista"
+          show
+          ></c-select>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <script type="text/html" id="modal-message-template">
+        <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h2 class="modal-title" style="float:left;"><%- title %></h2>
+                <button type="button" class="close" style="float:right;">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <% message.forEach(function(element){%>
+                  <p><%- element %></p>
+                <%  }); %>
+                <% if (extra){ %>
+                <p class="last"> <%- extra %> </p>
+                <% } %>
+              </div>
+            </div>
+        </div>
+    </script>
+    <script type="text/html" id="modal-prompt-template">
+        <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header" style="text-align: center;">
+                <h2 class="modal-title"><%- title %></h2>
+              </div>
+              <div class="modal-body" style="text-align: center;">
+                <button class="yes-button">Si</button>
+                <button class="no-button">No</button>
+              </div>
+            </div>
+          </div>
+    </script>
+    <template id="login-template">
+        <label class="namelabel">OPTICA OCULAR</label>
+        <img src="{% static 'images/IconoFondo.svg' %}">
+        <c-form id="login-form" >
+          <form>
+          <div >
+            <c-input
+            titulo="Usuario" name='username'
+            required>
+            </c-input>
+            <c-input titulo="Contraseña" name='password'
+              required tipo="password">
+            </c-input>
+            <button class='log-in' type="submit">Login</button>
+          </div>
+          </form>
+        </c-form>
+    </template>
+    <template id="newproveedor-template">
+        <c-form name="proveedor">
+          <form>
+            <h1><center>Nuevo proveedor<center></h1>
+            <hr class="linear" />
+            <c-input
+            message = "El nombre del proveedor es obligatorio."
+            titulo = "Nombre proveedor"
+            name = "name"
+            required
+            ></c-input>
+            <c-input
+            titulo  = "Dirección proveedor"
+            name = "direction"
+            message = "La dirección es opcional; se aceptan letras|numeros|.|#|-|_ y espacios"
+            pattern = "^[0-9A-za-z_#\-\.\s]+$"></c-input>
+            <div class="split">
+              <c-input
+              message = "Este número de contacto es obligatorio."
+              titulo = "Número de contacto"
+              name = "contact_1"
+              required
+              pattern = "^[0-9]{8,8}$"
+              ></c-input>
+              <c-input
+              message = "Este número de contacto es opcional."
+              name = "contact_2"
+              titulo = "Número de contacto"
+              pattern = "^[0-9]{8,8}$"
+              ></c-input>
+            </div>
+            <hr class="linear" />
+            <div class="cform-btns">
+              <button type="submit">
+                <span class="fa fa-save"></span></button>
+              <button type="reset"><span class="fa fa-redo"></span></button>
+            </div>
+          </form>
+        </c-form>
+    </template>
+    <template id="newmarca-template">
+        <c-form name="marca">
+          <form>
+            <h1><center>Nueva marca<center></h1>
+            <hr class="linear" />
+            <c-input
+            titulo="Nombre de la marca"
+            message="Es obligatorio, se aceptan letras, números|.|_|- y espacios"
+            required
+            ttip-position = "top"
+            name="name"
+            ></c-input>
+            <c-input
+            titulo  ="Descripción de la marca"
+            message ="Es opcional, se recomienda para futuros datos"
+            ttip-position = "top"
+            name="description"
+            ></c-input>
+            <c-select show
+            titulo  = "Proveedor de la marca"
+            message = "Seleccione un proveedor de la caja, si no aparece debe agregarlo."
+            name="proveedor"></c-select>
+            <hr class="linear" />
+            <div class="cform-btns">
+              <button type="submit">
+                <span class="fa fa-save"></span></button>
+              <button type="reset"><span class="fa fa-redo"></span></button>
+            </div>
+          </form>
+        </c-form>
+    </template>
+    <template id="optica-template">
+      <c-form>
+        <form>
+          <h1><center>Nueva sucursal<center></h1>
+          <hr class="linear" />
+          <div class="split">
+            <c-input
+            titulo="Nombre de sucursal"
+            message="Es obligatorio, se aceptan letras, números y espacios"
+            required
+            ttip-position = "top"
+            name="name"></c-input>
+            <c-input
+            titulo="Correo electrónico"
+            message="Opcional, debe ingresar un correo válido"
+            tipo = "email"
+            ttip-position = "top"
+            name="email"></c-input>
+          </div>
+          <c-input
+          titulo="Dirección de la sucursal"
+          message = "La dirección es opcional; se aceptan letras|numeros|.|#|-|_ y espacios"
+          pattern = "^[0-9A-za-z_#\-\.\s]+$"
+          required
+          ttip-position = "top"
+          name="direction"></c-input>
+          <div class="split">
+            <c-input
+            message = "Este número de contacto es obligatorio."
+            titulo = "Número de contacto"
+            name = "contact_1"
+            required
+            pattern = "^[0-9]{8,8}$"
+            ></c-input>
+            <c-input
+            message = "Este número de contacto es opcional."
+            name = "contact_2"
+            titulo = "Número de contacto"
+            pattern = "^[0-9]{8,8}$"
+            ></c-input>
+          </div>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <template id="newfiltro-template">
+      <c-form>
+        <form>
+          <h1><center>Nuevo filtro<center></h1>
+          <hr class="linear" />
+          <c-input
+          titulo="Nombre del filtro"
+          message="Es obligatorio, se aceptan letras, números y espacios"
+          required
+          ttip-position = "top"
+          name="filtro"></c-input>
+          <c-input
+          titulo="Descripción del filtro"
+          message = "La descripción es opcional, pero servirá para brindar información del mismo"
+          ttip-position = "top"
+          name="description"></c-input>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <script type="text/html" id="header-template">
+        <% if (authenticated) {%>
+        <navbar-top>
+            <button role="toggle" type="button"><span class="glyphicon glyphicon-menu-hamburger"></span></button>
+            <div class="wrapper">
+                <img src="{% static 'images/IconoFondo.svg' %}">
+            </div>
+            <div class="logout">
+              <img id="profile-picture" src="/media/default.jpeg">
+              <div class="logout-form" style="display:none;">
+                <ul>
+                  <li><a>Revisar ventas</a></li>
+                  <li><a>Editar pefil</a></li>
+                  <li><a id="log-out">Log out</a></li>
+                  <li><a>Otra opción</a></li>
+                </ul>
+              </div>
+            </div>
+        </navbar-top>
+        <nav class="sidebar">
+            <ul>
+                <li><a href="/">Home<span class="pull-right fa fa-home"></span></a></li>
+                <li><a href="/#inventario">Inventario<span class="pull-right fa fa-database"></span></a></li>
+                <li><a href="/#ordenes">Ordenes<span class="pull-right fa fa-clone"></span></a></li>
+            </ul>
+        </nav>
+        <% } %>
+    </script>
+    <template id="new-inv-detail-template">
+      <c-form>
+        <form>
+          <h1><center>Nuevo lote en inventario<center></h1>
+          <hr class="linear" />
+          <c-select
+          message = "Optica a la que pertenece el aro"
+          titulo = "Sucursal"
+          name = "optica"
+          class = "full-dd"
+          show
+          ></c-select>
+          <div class="split">
+            <c-select
+            message = "Seleccione la marca del aro a asignar"
+            titulo = "Marca del aro"
+            name = "marca"
+            show
+            ></c-select>
+            <c-select
+            name = "aro"
+            message = "Modelo y color de la marca seleccionada, para cambiar seleccione otra marca"
+            titulo  = "Modelo y color de aro"
+            show
+            ></c-select>
+          </div>
+          <div class="split">
+          <c-input
+            message = "Este número de unidades es obligatorio y debe ser positivo"
+            titulo = "Nuevas unidades (total)"
+            name = "disponibles"
+            required
+            pattern = "^[1-9][0-9]*$"
+          ></c-input>
+          <c-input
+            message = "El costo de las unidades es obligatorio y debe ser positivo"
+            titulo = "Costo por unidad"
+            name = "costo"
+            required
+            pattern = "^[1-9][0-9]*(\.[0-9]{1,2})?$"
+          ></c-input>
+          </div>
+          <hr class="linear" />
+          <div class="cform-btns">
+            <button type="submit">
+              <span class="fa fa-save"></span></button>
+            <button type="reset"><span class="fa fa-redo"></span></button>
+          </div>
+        </form>
+      </c-form>
+    </template>
+    <template id="inventario-template">
+      <ul class="top-lvl-dd">
+        <li>
+          <a>Lente</a>
+          <ul class="first-lvl-dd">
+            <li>
+                <a>Laboratorio</a>
+                <ul class="second-lvl-dd last">
+                  <li>
+                    <button id="new-laboratorio"> Nuevo </button>
+                  </li>
+                  <li>
+                    <button id="laboratorio-gestion"> Gestión </button>
+                  </li>
+                </ul>
+            </li>
+            <li>
+                <a>Filtro</a>
+                <ul class="second-lvl-dd last">
+                  <li>
+                    <button id="new-filtro"> Nuevo </button>
+                  </li>
+                  <li>
+                    <button id="filtro-gestion"> Gestión </button>
+                  </li>
+                </ul>
+            </li>
+            <li>
+                <a>Tipo</a>
+                <ul class="second-lvl-dd last">
+                  <li>
+                    <button id="new-tipolente"> Nuevo </button>
+                  </li>
+                  <li>
+                    <button id="tipolente-gestion"> Gestión </button>
+                  </li>
+                </ul>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <a>Aro</a>
+          <ul class="first-lvl-dd">
+            <li>
+                <a>Proveedor</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button id="prov-gestion">Gestión</button>
+                  </li>
+                  <li>
+                    <button id="new-proveedor">Nuevo</button>
+                  </li>
+                </ul>
+            </li>
+            <li>
+              <a>Marca</a>
+              <ul class="second-lvl-dd">
+                <li>
+                  <button id="marca-gestion">Gestión</button>
+                </li>
+                <li>
+                  <button id="new-marca">Nuevo</button>
+                </li>
+              </ul>
+            </li>
+            <li>
+                <a>Tipo</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button id="aro-gestion">Gestión</button>
+                  </li>
+                  <li>
+                    <button id="new-aro">Nuevo</button>
+                  </li>
+                </ul>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <a>Optica</a>
+          <ul class="first-lvl-dd">
+            <li>
+                <a>Sucursal</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button id="sucursal">Gestión</button>
+                  </li>
+                  <li>
+                    <button id="new-sucursal">Nuevo</button>
+                  </li>
+                </ul>
+            </li>
+            <li>
+                <a>Inventario</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button id="inv-sucursal">Gestión</button>
+                  </li>
+                  <li>
+                    <button id="new-inv-sucursal">Nuevo</button>
+                  </li>
+                </ul>
+            </li>
+            <li>
+                <a>Gastos</a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <a>Gasto</a>
+          <ul class="first-lvl-dd">
+            <li>
+                <a>Descripción</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button>Nuevo</button>
+                  </li>
+                  <li>
+                    <button>Gestión</button>
+                  </li>
+                </ul>
+            </li>
+          </ul>
+        </li>
+        <li><a>Planilla</a>
+          <ul class="first-lvl-dd">
+            <li>
+                <a>Empleados</a>
+                <ul class="second-lvl-dd">
+                  <li>
+                    <button id="empleado">Gestionar</button>
+                  </li>
+                  <li>
+                    <button id="new-empleado">Nuevo</button>
+                  </li>
+                </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </template>
+</head>
+<body>
+<div id="main">
+</div>
+<script id="config" type="text/json">
+        {
+        "models":         {},
+        "customElements": {},
+        "collections":    {},
+        "fixedData":      {},
+        "views":          {},
+        "router":         null,
+        "eventBus":       {},
+        "apiLogin":       "{% url 'api-token-obtain-pair' %}",
+        "apiRefresh":     "{% url 'api-token-refresh' %}",
+        "apiRoot":        "{% url 'api-root' %}"
+        }
+</script>
+<script src="{% static 'javascript/client/app.js' %}"></script>
+<script src="{% static 'javascript/client/models.js' %}"></script>
+<script src="{% static 'javascript/client/views/views.js' %}"></script>
+<script src="{% static 'javascript/client/views/ordenes.js' %}"></script>
+<script src="{% static 'javascript/client/router.js' %}"></script>
+<script src="{% static 'javascript/client/web-component/my-components.js' %}"></script>
+<!-- script src="{% static 'javascript/main.js' %}"></script -->
+</body>
+</html>

@@ -1,0 +1,22 @@
+<form role="form" {% if not marca %} method="POST" {% else %} method="PUT" {% endif %}>
+    <label class="formlabel">Nombre Marca</label>
+    <div class="inner-addon right-addon">
+        <i class="fa fa-asterisk required-fa"></i>
+        <input name="provName" type="text" class="form-control" placeholder="Proveedor, e.g.: Dinamovision"
+        {% if marca %} value="{{ marca.marcaName }}" {% endif %} required pattern="[0-9a-zA-Z\sñÑÁÉÍÓÚÜáéíóúü]+">
+    </div>
+    <small class="form-text text-muted">Ingrese el nombre de la marca, se permiten letras, espacios y números</small>
+
+    <label class="formlabel">Descripción Marca</label>
+    <div class="inner-addon right-addon">
+        <i class="fa fa-asterisk required-fa"></i>
+        <input name="provName" type="text" class="form-control" placeholder="Proveedor, e.g.: Dinamovision"
+        {% if marca %} value="{{ marca.marcaName }}" {% endif %} required pattern="[0-9a-zA-Z\sñÑÁÉÍÓÚÜáéíóúü]+">
+    </div>
+    <small class="form-text text-muted">Ingrese alguna descripción de la marca, se permiten letras, espacios y números</small>
+
+    <label class="formlabel">Proveedor</label>
+    <select class="custom-select proveedor-list">
+
+    </select>
+</form>

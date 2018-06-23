@@ -1,0 +1,70 @@
+<div class="table-header">
+    <div class="fraction-left">
+        <label>Mostrar </label>
+        <select>
+            <option>10</option>
+            <option>20</option>
+            <option>30</option>
+        </select>
+        <label>entradas</label>
+    </div>
+    <div class="fraction-right">
+        <label>Buscar: </label>
+        <input type="search" placeholder="Proveedor">
+        <button type='button' class="fa fa-search buscador-tabla"></button>
+    </div>
+    <div class="clearfix" style="margin-left: 50px">
+        <label> Titin </label>
+    </div>
+</div>
+<table class="basic-lines" id="proveedor-data" >
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Teléfono</th>
+            <th>Teléfono</th>
+            <th>ss</th>
+            <th></th>
+        </tr>
+    </thead>
+    <% if (proveedores !== null) { %
+        <tbody class="non-empty">
+        <% _.each(proveedores.models, function (proveedor) { %>
+            <tr>
+                <td><%- proveedor.get('id') %></td>
+                <td><%- proveedor.get('provName') %></td>
+                <td>
+                    <% if (proveedor.get('provDirection') == '') {%>
+                        Ciudad de Guatemala
+                    <% } else { %>
+                        <%- proveedor.get('provDirection') %>
+                    <% } %>
+                </td>
+                <td><%- proveedor.get('provContact1') %></td>
+                <td>
+                    <% if (proveedor.get('provContact2') == null ) {%>
+                        -
+                    <% } else { %>
+                        <%- proveedor.get('provContact2') %>
+                    <% } %>
+                </td>
+                <td><button class="delete-button-table"><i class="fa fa-window-close-o"></i></button></td>
+                <td><button class="edit-button-table"><i class="fa fa-edit"></i></button></td>
+            </tr>
+        <% }); %>
+            <tr style="height:fit-content"><td style="display:block; width:100%; height:fit-content;"><button class="btn add-button">NUEVO PROVEEDOR</button></td></tr>
+        </tbody>
+    <% }else { %>
+        <tbody class="empty">
+        <tr style="height:100px;">
+            <td style="width:100%;"><i class="fa fa-wheelchair-alt" style="font-size:64px; color:#b72b12;"></i></td>
+        </tr>
+        <tr><td style="width:100%"># NO HAY RESULTADOS DE LA BUSQUEDA #</td></tr>
+        <tr><td style="display:block; width:100%"><button>nuevo proveedor</button></td></tr>
+        </tbody>
+    <% } %>
+        
+
+</table>
+

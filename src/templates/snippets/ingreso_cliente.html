@@ -1,0 +1,100 @@
+<h3>INFORMACIÓN CLIENTE</h3>
+<hr class="colorgraph">
+<form id="form_clientInfo" action="post">
+    <!--inicio de la forma-->
+    <div class="row">
+        <div class="col-xs-2 col-md-5 col-md-offset-1">
+            <label class="formlabel" for="client_firstname">Nombre</label>
+            <div class="inner-addon right-addon">
+                <i class="fa fa-asterisk required-fa" ></i>
+                <input type="text" class="form-control" id="client_firstname" aria-describedby="firstname_help" placeholder=" Juan" pattern="[A-Za-zñÑÁÉÍÓÚÜáéíóúü]+" required>
+            </div>
+            <label id="firstname_help" class="form-text text-muted">Ingresar nombre del cliente</label>
+        </div>
+        <div class="col-xs-2 col-md-5">
+            <label class="formlabel" for="client_lastname">Apellido</label>
+            <div class="inner-addon right-addon">
+                <i class="fa fa-asterisk required-fa" ></i>
+                <input type="text" class="form-control" id="client_lastname" aria-describedby="lastname_help" placeholder="Perez" pattern="[A-Za-zñÑÁÉÍÓÚÜáéíóúü]+" required>
+            </div>
+            <label id="lastname_help" class="form-text text-muted">Ingresar apellido del cliente</label>
+        </div>
+
+        <div class="hidden">
+            <div class="col-xs-2 col-md-5 col-md-offset-1">
+                <label class="formlabel" for="client_secondname">Segundo nombre</label>
+                <div class="inner-addon right-addon">
+                    <i class="fa fa-asterisk required-fa" ></i>
+                    <input type="text" class="form-control" id="client_secondname" aria-describedby="secondname_help" placeholder=" Juan" pattern="[A-Za-zñÑÁÉÍÓÚÜáéíóúü]+">
+                </div>
+                <label id="secondNameHelp" class="form-text text-muted">Ingresar segundo nombre del cliente</label>
+            </div>
+            <div class="col-xs-2 col-md-5">
+                <label class="formlabel" for="client_surname">Segundo apellido</label>
+                <div class="inner-addon right-addon">
+                    <i class="fa fa-asterisk required-fa" ></i>
+                    <input type="text" class="form-control" id="client_surname" aria-describedby="surname_help" placeholder="Perez" pattern="[A-Za-zñÑÁÉÍÓÚÜáéíóúü]+">
+                </div>
+                <label id="surname_help" class="form-text text-muted">Ingresar el segundo apellido del cliente</label>
+            </div>
+        </div>
+
+        <div class="col-md-10 col-md-offset-1">
+            <label for="client_profession" class="formlabel">Ocupación</label>
+            <div class="inner-addon right-addon">
+                <i class="fa fa-question required-fa" ></i>
+                <input type="text" class="form-control" id="client_profession" aria-describedby="profession_help" placeholder="Beisbolista" pattern="[A-Za-zñÑÁÉÍÓÚÜáéíóúü]+">
+            </div>
+            <label id="profession_help" class="form-text text-muted">Ocupación del cliente</label>
+        </div>
+
+        <div class="col-md-10 col-md-offset-1">
+            <label class="formlabel" for="client_contactNo">Números de contacto</label>
+            <div class="row" id="client_contactNo">
+                <div class="col-xs-12 col-md-6"  aria-describedby="contact_help">
+                    <div class="inner-addon right-addon">
+                        <i class="fa fa-asterisk required-fa" ></i>
+                        <input type="text" class="form-control" id="client_contact1" placeholder="+(502) 5555-5555" pattern="[0-9]{8,8}" required>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-md-6">
+                    <div class="inner-addon right-addon">
+                        <i class="fa fa-question required-fa" ></i>
+                        <input type="text" class="form-control" id="client_contact2" placeholder="+(502) 5555-5555" pattern="[0-9]+">
+                    </div>
+                </div>
+                <label id="contact_help" class="form-text text-muted">Números de teléfono</label>
+            </div>
+        </div>
+
+
+        <div class="col-md-5 col-md-offset-1">
+                <label class="formlabel" for="cliente-sexo">Sexo</label>
+                <div class="inner-addon right-addon" id="cliente-sexo">
+                    <input name="account_type" id="input-type-masculino" value="M" type="radio" required/>
+                    <label for="input-type-masculino" >M</label>
+                    <input name="account_type" id="input-type-femenino" value="F" type="radio" required/>
+                    <label for="input-type-femenino">F</label>
+                    <i class="fa fa-asterisk"></i>
+                </div>
+
+        </div>
+        <div class="col-md-5">
+            <label class="formlabel" for="cliente-edad">Edad</label>
+            <div class="inner-addon right-addon" id="cliente-edad">
+                 <select id="edadcliente" class="custom-select" required>
+                     <option value="" disabled selected hidden>Edad...</option>
+                 </select>
+                <i class="fa fa-asterisk" ></i>
+            </div>
+        </div>
+    </div>
+    <!--fin de la forma-->
+    <div class="container next-prev" >
+        <button type="button" class="btn pull-right next-step" data-toggle="btn-tooltip" data-placement="top" title="Guardar y seguir a paso 2">
+            <span>
+                <i class="fa fa-angle-double-right"></i>
+            </span>
+        </button>
+    </div>
+</form>
