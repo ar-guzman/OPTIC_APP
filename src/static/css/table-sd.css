@@ -1,27 +1,25 @@
 * {
   box-sizing: border-box;
-  font-weight: 600;
+  font-weight: normal;
+  font-size: 2.5vh;
 }
-
-select {border-radius:5px;}
 
 button:focus, select:focus { outline: 0; }
 
 .table-header{
     width:100%;
-    border-top-right-radius: 5px;
-    border-top-left-radius: 5px;
-    background-color: #0c0c0c;
+    background-color: #021b2b;
     margin: auto;
     margin-top:5vh;
     padding: 1vh 0;
     display: block;
+    --selc-title-color: white;
 }
-
 
 .table-header input{
     width:70%;
     outline: none;
+    float:left;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     border-top-left-radius: 5px;
@@ -36,44 +34,40 @@ button.fa-search{
     border:     none;
     height:     inherit;
     width:      5vh;
-    background-color:           #8e8b8a;
+    background-color:           #e8f0ff;
+    color:  #5899ff;
+    float: left;
     border-top-right-radius:    5px;
     border-bottom-right-radius: 5px;
     border-top-left-radius:     0;
     border-bottom-left-radius:  0;
+
 }
 
-button.fa-search:focus {
-    color: #000;
-    background-color: #e8f0ff;
-}
-
-button.fa-search:hover{
-    color: #e8f0ff;
-    background-color: #000;
+button.fa-search:hover,button.fa-search:focus {
+  color: #e8f0ff;
+  background-color: #5899ff;
 }
 
 .table-header select{
     height:     inherit;
     padding:    0.5vh;
-    font-size:  2.5vh;
     font-weight:  400;
     margin:     0 1vh;
 }
 
 .table-header label {
-    color:      #ccc;
+    color:      #fff;
     height:     5vh;
-    font-size:  3vh;
-    width:      124px;
+    width:      103px;
     display:    inline-block;
     padding:    0 1vh;
     margin-bottom: 0;
 }
 
-.f-left, .f-right { width: 40%; display: inline-block; height: 5vh;}
+.f-left, .f-right { width: 40%; display: inline-block; height: 5vh; margin-right: 3vw;}
 .f-left{ margin-left:5%; }
-.f-right{ width: 30%; float:right; }
+.f-right{ width: 30%; float:right; margin-right: 0; }
 .f-right::after{ content: ""; clear:both; }
 
 .basic-lines{
@@ -83,8 +77,6 @@ button.fa-search:hover{
 }
 
 tbody {
-    font-size:2.5vh;
-    font-family:"Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
     max-height: 47.5vh;
     display: block;
     width: 100%;
@@ -98,16 +90,15 @@ thead {
 
 tr {
     text-align:center;
-    font-size:3vh;
     font-weight:bold;
-    background-color: #334B49;
-    color:#e8f0ff;
+    background-color: #3A4856;
+    color: #ffffff;
     height:8vh;
     display:block;
 }
 
-tbody tr:nth-child(odd){ background-color: var(--odd-tr-color, #00A1B0); }
-tbody tr:nth-child(even){ background-color: var(--even-tr-color,#00B196); }
+tbody tr:nth-child(odd){ background-color: var(--odd-tr-color,#9EADBD); }
+tbody tr:nth-child(even){ background-color: var(--even-tr-color,#fff); color: #3a4856;}
 
 
 td, th{
@@ -121,10 +112,11 @@ td, th{
     vertical-align: middle;
     padding: 0;
 }
+th { font-size: 3vh; }
 
-td + td { border-left:2px solid #e8f0ff;}
+td + td { border-left:2px solid #476b77;}
 
-.button-cancel-table, .button-save-table, .edit-button-table, .delete-button-table{
+.print-button-table, .button-cancel-table, .button-save-table, .edit-button-table, .delete-button-table{
   width:4vh;
   height:4vh;
   display:inline-block;
@@ -135,7 +127,7 @@ td + td { border-left:2px solid #e8f0ff;}
 }
 
 .delete-button-table { background-color: #ce4646; color:#e8f0ff; }
-.edit-button-table { background-color: #ce7545; color:#e8f0ff; }
+.print-button-table, .edit-button-table { background-color: #ff5900; color:#e8f0ff; }
 .button-cancel-table { background:#ba3737; color:white; }
 .button-save-table { background:#74a524; color:white; }
 
@@ -164,9 +156,7 @@ td input:focus{
 
 .table-footer {
   width:100%;
-  border-bottom-right-radius: 5px;
-  border-bottom-left-radius: 5px;
-  background-color: #0c0c0c;
+  background-color: #021B2B;
   padding: 1vh 0;
   height: 7vh;
   display: flex;
@@ -224,14 +214,14 @@ td input:focus{
 }
 
 [ttip]::before {
-    content: "";
-    position: absolute;
-    top:-1vh;
-    left:50%;
-    transform: translateX(-50%);
-    border-width: 1.5vh 2.5vh 0 2.5vh;
-    border-style: solid;
-    border-color: #2da843 transparent transparent transparent;
+  content: "";
+  position: absolute;
+  top: -1.1vh;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 1.5vh 2.5vh 0 2.5vh;
+  border-style: solid;
+  border-color: #02343c transparent transparent transparent;
 }
 
 [ttip]::after {
@@ -240,7 +230,7 @@ td input:focus{
     left:50%;
     top: -1vh;
     transform: translateX(-50%) translateY(-100%);
-    background: #2da843;
+    background: #02343c;
     text-align: center;
     color: #fff;
     padding:4px 2px;
@@ -261,11 +251,11 @@ div.extra-filter {
 }
 
 .extra-filter c-select{
-  --selc-title-size: 3vh;
-  --selc-title-color:#ccc;
+  --selc-title-size: 2.5vh;
+  --selc-title-color:#fff;
   --selc-title-display: inline-block;
-  --selc-sel-width: 125px;
-  --selc-title-width: 124px;
+  --selc-sel-width: auto;
+  --selc-title-width: 100px;
   --selc-label-padding: 0 1vh;
   margin-left: 5%;
   width: auto;
@@ -277,9 +267,22 @@ div.extra-filter {
   --selc-sel-width: auto;
 }
 
+.extra-filter c-select[name="status"],.extra-filter c-select[name="pagado"]{
+  --selc-title-width: 81.5px;
+  margin-left: 2.5%;
+}
+
 .extra-filter c-datepicker {
-  --cdate-font-size: 3vh;
+  --cdate-font-size: 2.5vh;
+  margin-left: 2.5%;
+}
+
+.extra-filter c-datepicker:first-child{
   margin-left: 5%;
+}
+
+c-datepicker[name="ini_date"]{
+  --cdate-label-padding: 0 0.5vh 0 1vh;
 }
 
 .filters {
@@ -295,4 +298,18 @@ div.extra-filter {
 .filters c-tag{
   margin-left: 5%;
   display:inline-block;
+}
+
+.btn-table-orden, td select{
+  height: 80%;
+  width: 80%;
+  color:inherit;
+  margin: auto;
+  background: transparent;
+  font-size: 2.5vh;
+  border: none;
+}
+
+td select{
+  color: white;
 }

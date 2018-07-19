@@ -6,8 +6,14 @@ let template = document.getElementById("table-template"),
       <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css"
         integrity="sha384-5SOiIsAziJl6AWe0HWRKTXlfcSHKmYV4RBF18PPJ173Kzn7jzMyFuTtk8JA7QQG1" crossorigin="anonymous">
       <style>
-      select,select:focus {
-        border-radius:5px;
+
+      @keyframes pulse {
+        0%  { box-shadow: 0 0 0 0 #f94340; }
+        50% { box-shadow: 0 0 0 15px rgba(249, 67, 64,0.5);}
+        100% { box-shadow: 0 0 0 30px transparent; }
+      }
+
+      select.selc-style,select.selc-style:focus {
         border:transparent;
         padding:2px;
         height: 5vh;
@@ -16,14 +22,15 @@ let template = document.getElementById("table-template"),
         width: var(--selc-sel-width,50%);
         outline: none;
         margin: 0 1vh;
+        transition: background 1s;
         box-shadow: 0px 9px 12px -5px rgba(11,11,11,0.5);
       }
 
-      .titulo label {
+      .sel-titulo label {
         padding: var(--selc-label-padding,0);
       }
 
-      .titulo > span {
+      .sel-titulo > span {
         position: absolute;
         right: 0;
         line-height: inherit;
@@ -31,7 +38,7 @@ let template = document.getElementById("table-template"),
         padding-top: 4px;
       }
 
-      .titulo{
+      .sel-titulo{
         font-size: var(--selc-title-size,3.5vh);
         color: var(--selc-title-color,#4682B4);
         display: var(--selc-title-display,block);
@@ -39,25 +46,25 @@ let template = document.getElementById("table-template"),
         position: relative;
       }
 
-      .legend{
+      .sel-legend{
         font-size: 2vh;
-        color: var(--selc-legend-color,#ccc);
+        color: var(--selc-legend-color,#081821);
         display: var(--selc-legend--display, block);
       }
 
-      span.fa.fa-check-circle { color: #00ff8c; }
+      span.fa.fa-check-circle { color: #15ff5f; }
       span.fa.fa-times-circle { color: #f94340; }
-      .success { background-color:#00ff8c; color:white; }
-      .error   { background-color:#f94340; color:white; }
+      .success { background-color:#15ff5f; color:white; }
+      .error   { background-color:#f94340; color:white; animation: pulse 0.5s ease-in;}
 
       </style>
-      <div class="titulo">
+      <div class="sel-titulo">
         <label></label>
         <span></span>
       </div>
-      <select>
+      <select class="selc-style">
       </select>
-      <label class="legend"></label>`
+      <label class="sel-legend"></label>`
       ;
 
 class CTable extends HTMLElement {
@@ -262,12 +269,44 @@ class CInput extends HTMLElement {
       this._callback = [];
     }
 
+    static get observedAttributes() {
+      return ['disabled'];
+    }
+
+    get disabled() {
+      return this.hasAttribute('disabled');
+    }
+
+    set disabled(val) {
+
+      if (val) {
+        this.setAttribute('disabled', '');
+        this.shadowRoot.querySelector('input').setAttribute('readonly','');
+      } else {
+        this.removeAttribute('disabled');
+        this.shadowRoot.querySelector('input').removeAttribute('readonly','');
+      }
+    }
+
+
+    attributeChangedCallback(name, oldValue, newValue) {
+
+      if (this.disabled) {
+        this.shadowRoot.querySelector('input').setAttribute('readonly','');
+      } else {
+        this.shadowRoot.querySelector('input').removeAttribute('readonly');
+      }
+
+    }
+
     /*
     * SET Y GET Generales
     */
     get value(){
       if(this._tipo == 'file')
         return this.shadowRoot.querySelector('input').files[0];
+      else if(this._tipo == 'datetime-local')
+        return new Date(this.shadowRoot.querySelector('input').value).getTime();
       else
         return this.shadowRoot.querySelector('input').value;
     }
@@ -350,7 +389,11 @@ class CInput extends HTMLElement {
           /* verificar si es requerido*/
       let empty = text === "" || !(/\S/).test(text);
 
-      if(!this._required && empty) return true;
+      if(!this._required && empty){
+        if(this._extraValidationStep)
+          return this._extraValidationStep();
+        return true;
+      }
 
       if(this._required && empty) {
         this.setToolTip.call(this,"Campo obligatorio, llenar");
@@ -400,8 +443,14 @@ class CInput extends HTMLElement {
       let input = this.shadowRoot.querySelector('input');
       if(this._tipo){
         input.setAttribute('type',this._tipo);
-        this._tipo == 'file' && input.setAttribute('style','--inputc-input-bg:none; border:none;')
+        this._tipo == 'file' && input.setAttribute('style','border:0px;');
+        (this._tipo == 'file' && this.hasAttribute('images')) && input.setAttribute('accept',"image/*");
       }
+      if(this.hasAttribute('value')){
+        this.shadowRoot.querySelector('input').value = this.getAttribute('value');
+        this.validate();
+      }
+
       this.shadowRoot.querySelector('.titulo').querySelector('label').textContent = this._title;
       this.shadowRoot.querySelector('.legend').textContent = this._message || "";
     }
@@ -424,7 +473,7 @@ class CInput extends HTMLElement {
 
     finishIn(){
       var el = this.shadowRoot.querySelector('input'),
-          timeout = 1e3/2,
+          timeout = 500,
           timeoutReference = null,
           fnRef = this.validate,
 
@@ -469,17 +518,29 @@ class CInput extends HTMLElement {
           input = this.shadowRoot.querySelector('input');
       switch (val) {
         case 1:
-          span.setAttribute('class','fa fa-check-circle');
-          input.setAttribute('class','success');
+          span.classList.remove('fa-asterisk');
+          span.classList.remove('fa-question-circle');
+          span.classList.remove('fa-times-circle');
+          span.classList.add('fa-check-circle');
+          input.classList.remove('error');
+          input.classList.add('success');
           break;
         case 2:
-          span.setAttribute('class','fa fa-times-circle');
-          input.setAttribute('class','error');
+          span.classList.remove('fa-asterisk');
+          span.classList.remove('fa-question-circle');
+          span.classList.remove('fa-check-circle');
+          span.classList.add('fa-times-circle');
+          input.classList.remove('success');
+          input.classList.add('error');
           break;
         default:
-          span.setAttribute('class',
-          (this._required)?'fa fa-asterisk':'fa fa-question-circle');
-          input.removeAttribute('class');
+          span.classList.remove('fa-asterisk');
+          span.classList.remove('fa-question-circle');
+          span.classList.remove('fa-times-circle');
+          span.classList.remove('fa-check-circle');
+          span.classList.add(((this._required)?'fa-asterisk':'fa-question-circle'));
+          input.classList.remove('error');
+          input.classList.remove('success');
       }
     }
 
@@ -528,10 +589,18 @@ class CForm extends HTMLElement  {
       this._collection = coll;
     }
 
-    serializeForm(){
+    get collection(){
+      return this._collection;
+    }
 
-      let obj     = {};
-      let entries = this.querySelectorAll('c-input,c-select,input,c-datepicker');
+    serializeForm(select = false){
+
+      let obj = {}, entries;
+
+      if(!select)
+        entries = this.querySelectorAll('c-input,c-select,input,c-datepicker,textarea');
+      else
+        entries = this.querySelectorAll('c-input,c-select,input,c-datepicker,textarea,select');
 
       entries.forEach(function(element){
           obj[element.name] = element.value;
@@ -599,6 +668,10 @@ class CForm extends HTMLElement  {
 
       return isValid;
 
+    }
+
+    get name(){
+      return this.getAttribute('name');
     }
 
   }
@@ -758,16 +831,19 @@ class CSelect extends HTMLElement {
         switch (val) {
           case 1:
             span.setAttribute('class','fa fa-check-circle');
-            this._csel.setAttribute('class','success');
+            this._csel.classList.add('success');
+            this._csel.classList.remove('error');
             break;
           case 2:
             span.setAttribute('class','fa fa-times-circle');
             this.setAttribute('ttip','Debe seleccionar alguna opción');
-            this._csel.setAttribute('class','error');
+            this._csel.classList.remove('success');
+            this._csel.classList.add('error');
             break;
           default:
             span.setAttribute('class','fa fa-asterisk');
-            this._csel.removeAttribute('class');
+            this._csel.classList.remove('success');
+            this._csel.classList.remove('error');
           }
       }
 
@@ -794,10 +870,10 @@ class CDatePicker extends HTMLElement {
       this.shadowRoot.innerHTML = `
       <style>
       label{font-size: var(--cdate-font-size,3.5vh); color:
-            var(--cdate-label-color,#ccc);
+            var(--cdate-label-color,#fff);
             padding: var(--cdate-label-padding,0);
             width:var(--cdate-label-width,125px); }
-      input[type="date"]{ border-radius: 5px; background-color: white; height: 5vh;
+      input[type="date"]{ background-color: white; height: 5vh;
               outline:none; border:none; width: auto;}
       input[type="date"]::-webkit-clear-button {
         padding:1px;
@@ -883,7 +959,7 @@ class CTag extends HTMLElement {
 
       label, button {
         color: white;
-        background-color: var(--ctag-bg-color,#55d136);
+        background-color: var(--ctag-bg-color,#58e98e);
         height: var(--ctag-height,5vh);
         font-size: var(--ctag-font-size,2.5vh);
         display: block;
@@ -902,13 +978,13 @@ class CTag extends HTMLElement {
         outline: none;
         border: none;
         font-size: 3.5vh;
-        border-left: 1px solid black;
+        border-left: 1px solid white;
       }
 
       button:hover{
         color:#fff;
         text-shadow: 0 2px 0 #0a0a0a;
-        background-color: #87e23d;
+        background-color: #f94340;
       }
 
       div::after{

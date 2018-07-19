@@ -208,9 +208,10 @@ class InventarioSerializer(serializers.ModelSerializer):
         return value
 
     def validate_ventas(self, value):
+        print(self.initial_data)
         if not self.instance:
             return 0
-        if value < 0:
+        if value < -1 or (value == 0 and self.initial_data['perdidas'] == 0):
             raise serializers.ValidationError('Para registrar la venta no puede utilizar un número negativo')
         if self.instance.disponibles >= 1:
             return value
@@ -238,6 +239,11 @@ class InventarioSerializer(serializers.ModelSerializer):
             instance.ventas = instance.ventas + 1
             instance.save()
             return instance
+        elif 'ventas' in validated_data and validated_data.get('ventas') > -1 and instance.ventas > 1:
+            instance.disponibles = instance.disponibles + 1
+            instance.ventas = instance.ventas - 1
+            instance.save()
+            return instance
         instance.disponibles = validated_data.get('disponibles', instance.disponibles)
         instance.save()
         return instance
@@ -255,7 +261,7 @@ class InventarioBaseSerializer(serializers.ModelSerializer):
         aromc = '{}-{}'.format(instance.aro.modelo, instance.aro.color)
         invid = representation.pop('id')
         marca = instance.aro.marca.name
-        costo = representation.pop('costo')
+        costo = (int((float(representation.pop('costo')) * 2.5)/50) + 1) * 50
 
         request = self.context['request']
 
@@ -342,6 +348,27 @@ class LenteSerializer(serializers.ModelSerializer):
         model = Lente
         fields = ('id', 'uri', 'material', 'tipo', 'color', 'filtro')
         read_only = ['id', 'uri']
+
+    def __init__(self, *args, **kwargs):
+        super(LenteSerializer, self).__init__(*args, **kwargs)
+        request = kwargs['context']['request']
+        partial = 'partial' in request.GET
+        if partial:
+            for k in list(self.fields.keys()):
+                if k == 'uri':
+                    self.fields.pop(k)
+
+    def to_representation(self, instance):
+        representation = super(LenteSerializer, self).to_representation(instance)
+        if len(representation) > 5:
+            return representation
+
+        id = representation.pop('id')
+        material = representation.pop('material')
+        color = representation.pop('color')
+        tipo = representation.pop('tipo')
+        filtros = representation.pop('filtro')
+        return {id: [tipo,material,color,filtros]}
 
     def create(self, validated_data):
         filters = validated_data.pop('filtro')

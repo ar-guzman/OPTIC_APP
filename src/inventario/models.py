@@ -5,6 +5,10 @@ from django.db import models
 from django.db.models import Lookup, Field
 from .utils import get_count_digits
 
+
+def optica_path(instance):
+    return 'logos/logo_{0}'.format(instance.id)
+
 class Optica(models.Model):
     """
     Modelo que guarda la información de la óptica:
@@ -14,6 +18,8 @@ class Optica(models.Model):
     direction = models.CharField(max_length=255,db_column="direction")
     contact_1 = models.PositiveIntegerField(blank=False, db_column="contact_1")
     contact_2 = models.PositiveIntegerField(null=True, db_column="contact_2")
+    photo = models.FileField(verbose_name=('Logo'), upload_to=optica_path
+                             , max_length=255, null=True, blank=True)
     email = models.EmailField(db_column="email",blank=True,default="correo@correo.com")
     uuid = models.UUIDField(    #usado por el api para buscar el registro
         db_index=True,
@@ -73,6 +79,10 @@ class Marca(models.Model):
 
 
 class Aro(models.Model):
+    """
+    sexo 0 => masculino 1 => femenino
+    tipo 0 => acetato 1 => ????
+    """
     modelo = models.CharField(max_length=123, validators=[
         RegexValidator(
             regex="^[0-9A-Za-z\#_\-\s]+$",
@@ -92,6 +102,8 @@ class Aro(models.Model):
             message='Patrón inválido, sólo se aceptan letras, números,espacios, _, # y -'
         )
     ])
+    sexo = models.SmallIntegerField(default=0)
+    tipo = models.SmallIntegerField(default=0)
 
     def save(self,*args,**kwargs):
         self.modelo = self.modelo.upper()

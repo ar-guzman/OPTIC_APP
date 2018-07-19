@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from inventario.utils import get_count_digits
-from ..models import Empleado, Cliente, Aro_Orden
+from ..models import Empleado, Cliente, Aro_Orden, Refraction, Completa_Orden
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -113,13 +113,143 @@ class ClienteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError('Debe ingresar un número de teléfono válido.')
         return value
 
-
-class Orden_Aro(serializers.ModelSerializer):
+class AroOrdenSerializer(serializers.ModelSerializer):
     uri = serializers.HyperlinkedIdentityField(
         view_name='ordenaro-detail',
         lookup_field='uuid'
     )
-
     class Meta:
         model = Aro_Orden
-        exclue = ('uuid',)
+        exclude = ('uuid',)
+
+class RefractionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Refraction
+        fields = '__all__'
+
+    def validate_ejeODC(self,value):
+        if value > 180 or value < 0:
+            raise serializers.ValidationError('El valor del eje no puede superar los 180 o ser menor a 0')
+        return value
+
+    def validate_ejeOSC(self,value):
+        if value > 180 or value < 0:
+            raise serializers.ValidationError('El valor del eje no puede superar los 180 o ser menor a 0')
+        return value
+
+    def validate_ejeODF(self,value):
+        if value > 180 or value < 0:
+            raise serializers.ValidationError('El valor del eje no puede superar los 180 o ser menor a 0')
+        return value
+
+    def validate_ejeOSF(self,value):
+        if value > 180 or value < 0:
+            raise serializers.ValidationError('El valor del eje no puede superar los 180 o ser menor a 0')
+        return value
+
+    def validate_cilODC(self,value):
+        if value > 0:
+            raise serializers.ValidationError('El valor del cilindro sólo puede ser negativo.')
+        return value
+
+    def validate_cilOSC(self,value):
+        if value > 0:
+            raise serializers.ValidationError('El valor del cilindro sólo puede ser negativo.')
+        return value
+
+    def validate_cilODF(self,value):
+        if value > 0:
+            raise serializers.ValidationError('El valor del cilindro sólo puede ser negativo.')
+        return value
+
+    def validate_cilOSF(self,value):
+        if value > 0:
+            raise serializers.ValidationError('El valor del cilindro sólo puede ser negativo.')
+        return value
+
+    def validate_esfOSF(self,value):
+        if value > 20 or value < -20:
+            raise serializers.ValidationError('El valor de la esfera debe estar entre ±20')
+        return value
+
+    def validate_esfODC(self,value):
+        if value > 20 or value < -20:
+            raise serializers.ValidationError('El valor de la esfera debe estar entre ±20')
+        return value
+
+    def validate_esfOSC(self,value):
+        if value > 20 or value < -20:
+            raise serializers.ValidationError('El valor de la esfera debe estar entre ±20')
+        return value
+
+    def validate_esfODF(self,value):
+        if value > 20 or value < -20:
+            raise serializers.ValidationError('El valor de la esfera debe estar entre ±20')
+        return value
+
+    def validate_esfOSF(self,value):
+        if value > 20 or value < -20:
+            raise serializers.ValidationError('El valor de la esfera debe estar entre ±20')
+        return value
+
+
+    def validate_prismaOD(self,value):
+        if value > 20:
+            raise serializers.ValidationError('El valor del prisma debe ser menor a 20')
+        return value
+
+    def validate_prismaOS(self,value):
+        if value > 20:
+            raise serializers.ValidationError('El valor del prisma debe ser menor a 20')
+        return value
+
+    def validate_addOD(self,value):
+        if value > 20:
+            raise serializers.ValidationError('El valor de ADD debe ser menor a 20')
+        return value
+
+    def validate_addOI(self,value):
+        if value > 20:
+            raise serializers.ValidationError('El valor de ADD debe ser menor a 20')
+        return value
+
+    def validate_ventalente(self,value):
+        if value < 0:
+            raise serializers.ValidationError('No puede regalar el lente!!!!')
+        return value
+
+
+class CompletaOrdenSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordencompleta-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = Completa_Orden
+        exclude = ('uuid','filtros')
+
+class CompletaOrdenInfoSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordencompleta-detail',
+        lookup_field='uuid'
+    )
+    cliente = ClienteSerializer(many=False)
+
+    class Meta:
+        model = Completa_Orden
+        exclude = ('uuid',)
+
+    def to_representation(self, instance):
+        representation = super(CompletaOrdenInfoSerializer, self).to_representation(instance)
+        abono = 0
+        cliente = representation.pop('cliente')
+        representation['cliente'] = {'firstname':cliente.pop('firstname'),'lastname':cliente.pop('lastname'),
+                                     'uri':cliente.pop('uri')}
+        for i in instance.abonos_completa.all():
+            abono += i.pago
+        representation['abono'] = abono
+        return representation

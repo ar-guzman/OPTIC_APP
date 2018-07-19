@@ -28,16 +28,16 @@
     <template id="orden-template">
       <ul class="top-lvl-dd">
         <li>
-          <button id="orden-aro">Orden aro</button>
+          <button id="orden-aro"><label>ORDEN ARO</label></button>
         </li>
         <li>
-          <button>Orden completa</button>
+          <button id="orden-completa"><label>ORDEN COMPLETA</label></button>
         </li>
         <li>
-          <button>Orden lente</button>
+          <button id="orden-lente"><label>ORDEN LENTE</label></button>
         </li>
         <li>
-          <button>Orden reparación</button>
+          <button id="orden-repair"><label>ORDEN REPARACIÓN</label></button>
         </li>
       </ul>
     </template>
@@ -74,14 +74,18 @@
     <template id="input-template">
       <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css">
       <style>
-
+        @keyframes pulse {
+          0%  { box-shadow: 0 0 0 0 #f94340; }
+          50% { box-shadow: 0 0 0 15px rgba(249, 67, 64,0.5);}
+          100% { box-shadow: 0 0 0 30px transparent; }
+        }
         .titulo{
           font-size: 3.5vh;
           color: var(--inputc-title-color,#4682B4);
           position: relative;
         }
 
-        .titulo > span {
+        .titulo > span.inputc-style {
           position: absolute;
           right: 0;
           line-height: inherit;
@@ -89,50 +93,59 @@
           padding-top: 4px;
         }
 
-        input, input:focus{
+        input.inputc-style, input.inputc-style:focus{
+          transition: 0.75s;
           outline: none;
           padding-left: 1vw;
-          border: 2px #4682B4 solid;
+          border: 2px #021b2b solid;
           box-sizing: border-box;
           font-weight: 600;
           background-color: var(--inputc-input-bg,#fff);
           color: var(--inputc-input-color,#fff);
-          border-radius: 5px;
           width:  var(--inputc-input-width,100%);
           height: 5vh;
           margin: 0 1vh;
           box-shadow: 0px 9px 12px -5px rgba(11,11,11,.75);
         }
 
-        input[type="file"]::-webkit-file-upload-button{
+        input.inputc-style[readonly]{ cursor: not-allowed; --inputc-input-fcolor:white; }
+        input.inputc-style.success[readonly]:focus{--inputc-input-fbg:#24b944; border-color:#24b944;}
+        input.inputc-style.error[readonly]:focus{--inputc-input-fbg:#f94340; border-color: #f94340;}
+
+        span.inputc-style { transition: 1s; color:var(--inputc-span-bg,#021b2b); }
+        input.inputc-style[type="file"]{ --inputc-input-bg:transparent; }
+        input.inputc-style.success[type="file"] { --inputc-input-bg:#24b944; }
+        input.inputc-style.error[type="file"]   { --inputc-input-bg:#f94340; animation: pulse .5s ease-in; }
+        input.inputc-style[type="file"]::-webkit-file-upload-button{
           height: 5vh;
           border-radius: 5px;
         }
 
-        input:focus{
+        input.inputc-style:focus{
           background-color: var(--inputc-input-fbg,#021c2b);
           color: var(--inputc-input-fcolor,#fc5f05);
         }
 
-        input[type="datetime-local"]::-webkit-clear-button {padding:1px;}
-        input[type="datetime-local"]::-webkit-inner-spin-button { visibility: hidden;}
+        input.inputc-style[type="date"]::-webkit-clear-button,input.inputc-style[type="datetime-local"]::-webkit-clear-button {padding:1px;}
+        input.inputc-style[type="date"]::-webkit-inner-spin-button, input.inputc-style[type="datetime-local"]::-webkit-inner-spin-button { visibility: hidden;}
 
-        .success { --inputc-input-bg:#00ff8c;}
-        .error { --inputc-input-bg:#f94340;  }
-        .fa.fa-check-circle { color: #00ff8c;}
-        .fa.fa-times-circle { color: #f94340;}
+        input.inputc-style.success { --inputc-input-bg:#24b944; border-color: #24b944; }
+        input.inputc-style.error   { --inputc-input-bg:#f94340; border-color:#f94340; animation: pulse .5s ease-in; }
+        .fa.fa-check-circle { --inputc-span-bg:#24b944;}
+        .fa.fa-times-circle { --inputc-span-bg:#f94340;}
         select:focus,button:focus {outline:0;}
 
         .legend{
+          margin-top:10px;
           font-size: 2vh;
           color: var(--inputc-legend-color,#ccc);
         }
       </style>
       <div class="titulo">
         <label></label>
-        <span></span>
+        <span class="inputc-style fa"></span>
       </div>
-      <input>
+      <input class="inputc-style">
       <label class="legend"></label>
     </template>
     <template id="newlente-template">
@@ -472,13 +485,22 @@
             ttip-position = "top"
             name="email"></c-input>
           </div>
-          <c-input
-          titulo="Dirección de la sucursal"
-          message = "La dirección es opcional; se aceptan letras|numeros|.|#|-|_ y espacios"
-          pattern = "^[0-9A-za-z_#\-\.\s]+$"
-          required
-          ttip-position = "top"
-          name="direction"></c-input>
+          <div class="split">
+            <c-input
+            titulo="Dirección de la sucursal"
+            message = "La dirección es opcional; se aceptan letras|numeros|.|#|-|_ y espacios"
+            pattern = "^[0-9A-za-z_#\-\.\s]+$"
+            required
+            ttip-position = "top"
+            name="direction"></c-input>
+            <c-input
+            titulo = "Logo de la sucursal"
+            message = "Logo de la sucursal que se mostrará en la orden"
+            name = "photo"
+            tipo = "file"
+            images
+            ></c-input>
+          </div>
           <div class="split">
             <c-input
             message = "Este número de contacto es obligatorio."

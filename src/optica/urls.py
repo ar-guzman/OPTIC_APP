@@ -23,6 +23,7 @@ from rest_framework_simplejwt.views import (
 )
 from django.conf import settings
 from ordenes.utils import MyTokenObtainPairView
+from ordenes.views import some_view
 
 urlpatterns = [
 	path('admin/', admin.site.urls),
@@ -30,6 +31,7 @@ urlpatterns = [
     url(r'^api-token-auth/', MyTokenObtainPairView.as_view(),name='api-token-obtain-pair'),
     url(r'^api-token-refresh/', TokenRefreshView.as_view(),name='api-token-refresh'),
     url(r'^$', TemplateView.as_view(template_name='index.html')),
+    url(r'^pdf$',some_view),
 ]
 
 if settings.DEBUG:

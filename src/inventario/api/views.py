@@ -21,7 +21,6 @@ class DefaultsMixin(object):
     authentication_classes = (
         authenticationjwt.JWTAuthentication,
     )
-
     permission_classes = (
         permissions.IsAuthenticated,
         permissions.DjangoModelPermissions,
@@ -208,9 +207,9 @@ class InventarioViewSet(DefaultsMixin,DefaultModelViewSet):
             marca = self.request.query_params.get('marca',None)
             qs = Inventario.objects.all().order_by('optica','aro','fecha')\
                 .filter(disponibles__gt = 0).distinct('optica','aro')#.values_list('id','optica','aro')
-            if optica is not None and optica != "":
+            if optica is not None and optica != "0" and optica !="":
                 qs = qs.filter(optica__id__iexact=optica)
-            if marca is not None and marca != "":
+            if marca is not None and marca != "" and marca != "0":
                 qs = qs.filter(aro__marca__id__iexact = marca)
             return qs
         qs = Inventario.objects.all().order_by('fecha')
@@ -220,9 +219,9 @@ class InventarioViewSet(DefaultsMixin,DefaultModelViewSet):
         if search is not None and search != "":
             qs = qs.filter(Q(aro__modelo=search)|Q(aro__color=search)|
                            Q(aro__marca__name__icontains=search))
-        if optica is not None and optica != "":
+        if optica is not None and optica != "0" and optica !="":
             qs = qs.filter(optica__id__iexact=optica)
-        if aro is not None and aro != "":
+        if aro is not None and aro != "" and aro !="0":
             qs = qs.filter(aro__id__iexact=aro)
         if fecha is not None and fecha != "":
             qs = qs.filter(fecha__exact=fecha)
@@ -293,8 +292,18 @@ class LenteViewSet(DefaultsMixin,DefaultModelViewSet):
             qs = qs.filter(Q(material__icontains = search) | Q(tipo__icontains = search)
                            | Q(tipo__icontains=search))
 
-        #print(qs.query)
         return qs
+
+    def list(self,request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        if 'partial' in request.query_params:
+            return Response({'results': serializer.data})
+        return self.get_full_response(serializer.data)
 
 class FiltroViewSet(DefaultsMixin,DefaultModelViewSet):
     serializer_class = FiltroSerializer

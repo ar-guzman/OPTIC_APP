@@ -35,6 +35,31 @@
         }
     });
 
+    app.opxhr = function(url, method, body, contentResponse) {
+        return new Promise((solve, err) => {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    solve(xhttp.response, this.status, xhttp);
+                }
+            };
+            xhttp.open(method, url, true);
+            csrftoken = getCookie('csrftoken');
+            xhttp.setRequestHeader('X-CSRFToken', csrftoken);
+            xhttp.setRequestHeader(
+              'Authorization',
+              'Bearer ' + app.session.get('access_token')
+            );
+            if(contentResponse)
+              xhttp.responseType = 'blob';
+            xhttp.setRequestHeader('Content-Type', 'application/json');
+            xhttp.send(body);
+
+        }).catch(function (error) {
+            console.error(error);
+        });
+    }
+
     var phone = RegExp('^[1-9][0-9]{7,7}$');
 
     var Session = Backbone.Model.extend({
@@ -513,9 +538,6 @@
     });
 
     app.models.Cliente = BaseModel.extend({
-      constructor: function Cliente() {
-          Cliente.__super__.constructor.apply(this, arguments);
-      },
       validate: function(attrs){
 
           let errors = [];
@@ -542,6 +564,13 @@
 
           return errors.length > 0 ? errors : false;
       },
+    });
+
+    app.models.OrdenCompleta = BaseModel.extend({
+      constructor: function OrdenCompleta() {
+          OrdenCompleta.__super__.constructor.apply(this, arguments);
+      },
+      type: 'C',
     });
 
 
@@ -585,6 +614,11 @@
           app.fixedData.inventario_aros = new CustomCollection({
             url: data.inventario,
             name: 'aros en inventario',
+          });
+
+          app.fixedData.lentes = new CustomCollection({
+            url: data.lente,
+            name: 'lentes',
           });
 
           /*  colecciones de backbone */
@@ -662,6 +696,13 @@
             }
           });
 
+          app.models.Cliente = app.models.Cliente.extend({
+            urlRoot:data.cliente,
+            constructor: function Cliente() {
+                Cliente.__super__.constructor.apply(this, arguments);
+            },
+          });
+
           app.collections.Cliente = BaseCollection.extend({
               model: app.models.Cliente,
               url: data.cliente,
@@ -670,6 +711,17 @@
               },
           });
 
+          app.collections.OrdenCompleta = BaseCollection.extend({
+              model: app.models.OrdenCompleta,
+              url: data.ordencompleta,
+              constructor: function OrdenesCompletas() {
+                  OrdenesCompletas.__super__.constructor.apply(this, arguments);
+              },
+          });
+
+          app.urls = {};
+          app.urls.ordenaro = data.ordenaro;
+          app.urls.ordencompleta = data.ordencompleta;
 
         app.proveedor   = new app.collections.Proveedor();
         app.marca       = new app.collections.Marca();
@@ -681,7 +733,7 @@
         app.filtro      = new app.collections.Filtro();
         app.empleado    = new app.collections.Empleado();
         app.cliente     = new app.collections.Cliente();
+        app.ordencompleta = new app.collections.OrdenCompleta();
     });
-
 
 })(jQuery, Backbone, _, app);

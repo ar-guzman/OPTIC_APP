@@ -657,12 +657,6 @@
         },
         destroy: function(){
             FormView.prototype.done.apply(this,arguments);
-        },
-        submit:function(event){
-
-          event.preventDefault();
-          alert('pero khaaaaa');
-
         }
     });
 
