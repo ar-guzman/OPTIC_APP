@@ -144,12 +144,12 @@ class MarcaViewSet(DefaultsMixin, DefaultModelViewSet):
         qs = Marca.objects.all().order_by('id')
         search = self.request.GET.get('search', None)
         proveedor = self.request.GET.get('proveedor', None)
-        if search is not None:
+        if search is not None and search != "":
             qs = qs.filter(Q(name__icontains=search) |
                            Q(description__icontains=search) |
                            Q(proveedor__name__icontains=search))
-        if proveedor is not None and proveedor != "":
-            qs = qs.filter(Q(proveedor__id__iexact=proveedor))
+        if proveedor is not None and proveedor != '0':
+            qs = qs.filter(Q(proveedor__id=proveedor))
         return qs
 
     def retrieve(self, request, *args, **kwargs):
@@ -186,6 +186,14 @@ class OpticaViewSet(DefaultsMixin, DefaultModelViewSet):
     serializer_class = OpticaSerializer
     pagination_class = DefaultPagination
     lookup_field = 'uuid'
+
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data['photo'] = instance.photo.url
+        return Response(data)
 
     def get_queryset(self):
         qs = Optica.objects.all().order_by('id')

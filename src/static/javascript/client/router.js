@@ -4,7 +4,9 @@
         routes: {
             '': 'home',
             'inventario':'inventario',
-            'ordenes':'ordenes'
+            'ordenes':'ordenes',
+            'lente':'lente',
+            'optica':'sucursal',
         },
         initialize: function (options) {
             this.header         = new app.views.HeaderView();
@@ -27,6 +29,14 @@
         ordenes: function(){
             var view = new app.views.OrdenesView({contentElement: this.contentElement});
             this.render(view);
+        },
+        lente: function(){
+          var view = new app.views.LenteView({contentElement: this.contentElement});
+          this.render(view);
+        },
+        sucursal:function(){
+          var view = new app.views.SucursalView({contentElement: this.contentElement});
+          this.render(view);
         },
         route: function (route, name, callback) {
         // Sobreescribir el router para forzar el login en cada página

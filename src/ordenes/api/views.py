@@ -1,9 +1,11 @@
 import re
 import datetime
+import decimal
 from uuid import UUID
 
 from django.core.paginator import InvalidPage
 from django.db import transaction
+from django.db.models import Q
 from django.utils import six
 
 from rest_framework import permissions, status
@@ -16,16 +18,17 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.pagination import PageNumberPagination
 
-from inventario.models import Inventario, Lente, Filtro
-from inventario.api.serializers import InventarioSerializer,OpticaSerializer
+from inventario.models import Inventario, Lente, Filtro, Laboratorio
+from inventario.api.serializers import InventarioSerializer, OpticaSerializer
 
 from ..views import pdfreport, some_view, completa_pdf
-from ..models import Empleado, Cliente, Aro_Orden, Abono_Aro, Completa_Orden, Abono_Completa, Refraction
+from ..models import Empleado, Cliente, Aro_Orden, Abono_Aro, Completa_Orden, Abono_Completa, Refraction, Lente_Orden, \
+    Abono_Lente
 from .serializers import EmpleadoSerializer, ClienteSerializer, AroOrdenSerializer, RefractionSerializer, \
-    CompletaOrdenSerializer, CompletaOrdenInfoSerializer
+    CompletaOrdenSerializer, CompletaOrdenInfoSerializer, LenteOrdenSerializer, RepairOrdenSerializer
 
 
-def parseDataToOrder(orden, refraction = None):
+def parseDataToOrder(orden, request, refraction=None):
     datos = {}
     datos['ordenID'] = orden.id
     datos['lente'] = {'tipo': orden.lente.tipo, 'material': orden.lente.material, 'color': orden.lente.color}
@@ -33,25 +36,36 @@ def parseDataToOrder(orden, refraction = None):
         datos['ref'] = refraction.data
     else:
         datos['ref'] = {}
-        for key in ['ejeODC','ejeOSC','ejeODF','ejeOSF','cilODC','cilOSC','cilODF','cilOSF',
-                'esfODC','esfOSC','esfODF','esfOSF','prismaOD','tipoprismaOD','prismaOS','tipoprismaOS',
-                'addOD','addOS','distC','distL']:
+        for key in ['ejeODC', 'ejeOSC', 'ejeODF', 'ejeOSF', 'cilODC', 'cilOSC', 'cilODF', 'cilOSF',
+                    'esfODC', 'esfOSC', 'esfODF', 'esfOSF', 'prismaOD', 'tipoprismaOD', 'prismaOS', 'tipoprismaOS',
+                    'addOD', 'addOS', 'distC', 'distL']:
             datos['ref'][key] = 0
 
     datos['aro'] = {'marca': orden.inventario.aro.marca.name,
-                    'modelo': "{} {}".format(orden.inventario.aro.modelo, orden.inventario.aro.color)}
+                    'modelo': orden.inventario.aro.modelo,
+                    'color':orden.inventario.aro.color}
     fil = []
     for i in orden.filtros.all().filter():
         fil.append(i.filtro)
     datos['filtros'] = fil
-    datos['nombre'] = orden.cliente.firstname
-    datos['apellido'] = orden.cliente.lastname
+    datos['cliente'] = {}
+    datos['cliente']['firstname'] = orden.cliente.firstname
+    datos['cliente']['lastname'] = orden.cliente.lastname
+    abono = 0
+    for pay in orden.abonos_completa.all():
+        if pay.active and pay.fecha == orden.fecha:
+            abono += pay.pago
+    datos['abono'] = str(abono)
+    datos['saldo'] = str(orden.total - abono)
     datos['fecha'] = orden.fecha
     datos['observaciones'] = "Refracción: {}\n Generales: {}".format(refraction.data.get('observaciones'),
                                                                      orden.observaciones)
-    opticaSer = OpticaSerializer(instance=orden.inventario.optica)
-    datos['optica'] = opticaSer.data
+    opticaSer = OpticaSerializer(instance=orden.inventario.optica,context={'request': request}).data
+    opticaSer['redes'] = orden.inventario.optica.redes
+    opticaSer['photo'] = orden.inventario.optica.photo
+    datos['optica'] = opticaSer
     return datos
+
 
 def payment_type(val):
     """
@@ -70,6 +84,7 @@ def payment_type(val):
         return 'Tarjeta'
     else:
         return 'No debería de pasar'
+
 
 def order_status(val):
     """
@@ -142,13 +157,14 @@ def parse_refraccion(data, **kwargs):
     distC = DP.get('dp-cerca', 0)
     obs = data['observaciones']
     return {'ejeODC': ejeODC, 'ejeOSC': ejeOSC, 'ejeODF': ejeODF, 'ejeOSF': ejeOSF,
-                'cilODC': cilODC, 'cilOSC': cilOSC, 'cilODF': cilODF, 'cilOSF': cilOSF,
-                'esfODC': esfODC, 'esfOSC': esfOSC, 'esfODF': esfODF, 'esfOSF': esfOSF,
-                'prismaOD': prismaOD, 'tipoprismaOD': tipoprismaOD, 'prismaOS': prismaOS,
-                'tipoprismaOS': tipoprismaOS,
-                'addOD': addOD, 'addOS': addOS, 'distC': distC, 'distL': distL,
-                'observaciones': obs, 'propia': kwargs['propia'], 'cliente': kwargs['cliente'].pk,
-                'orden':kwargs['orden']}
+            'cilODC': cilODC, 'cilOSC': cilOSC, 'cilODF': cilODF, 'cilOSF': cilOSF,
+            'esfODC': esfODC, 'esfOSC': esfOSC, 'esfODF': esfODF, 'esfOSF': esfOSF,
+            'prismaOD': prismaOD, 'tipoprismaOD': tipoprismaOD, 'prismaOS': prismaOS,
+            'tipoprismaOS': tipoprismaOS,
+            'addOD': addOD, 'addOS': addOS, 'distC': distC, 'distL': distL,
+            'observaciones': obs, 'propia': kwargs['propia'], 'cliente': kwargs['cliente'].pk,
+            'orden': kwargs['orden']}
+
 
 class DefaultsMixin(object):
     """Default settings for view authentication, permissions,
@@ -268,12 +284,14 @@ class ClienteViewSet(DefaultsMixin, DefaultModelViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
+            print('aynumamis cachos')
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         if not queryset:
             return Response(status=status.HTTP_404_NOT_FOUND)
         if 'partial' in request.query_params:
             return Response({'results': serializer.data})
+        print('aca')
         return self.get_full_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
@@ -284,7 +302,7 @@ class ClienteViewSet(DefaultsMixin, DefaultModelViewSet):
             datos = dict(serializer.data)
             refraction = []
             for ref in instance.refraction.all():
-                refraction.append({'id': ref.id, 'fecha': ref.fecha, 'orden':"{:06.0f}".format(ref.orden),
+                refraction.append({'id': ref.id, 'fecha': ref.fecha, 'orden': "{:06.0f}".format(ref.orden),
                                    'propia': ref.propia, 'obs': ref.observaciones})
             datos['refractions'] = refraction
             return Response(datos)
@@ -379,22 +397,29 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
     lookup_field = 'uuid'
 
     def get_queryset(self):
-        qs = Completa_Orden.objects.all().order_by('id', 'fecha').filter(status__lt = 4)
+        qs = Completa_Orden.objects.all().order_by('id', 'fecha')
         ini_date = self.request.GET.get('ini_date', None)
         last_date = self.request.GET.get('last_date', None)
         ini_bool = ini_date is not None and ini_date != ""
         last_bool = last_date is not None and last_date != ""
+        status = self.request.GET.get('status',None)
+        pagado = self.request.GET.get('pagado', None)
         if ini_bool or last_bool:
             if ini_bool and last_bool:
-                qs = qs.filter(fecha__range=(ini_bool, last_bool))
+                qs = qs.filter(fecha__range=(ini_date, last_date))
             elif ini_bool and not last_bool:
                 qs = qs.filter(fecha__gte=ini_date)
             elif not ini_bool and last_bool:
+                print('pero qu')
                 qs = qs.filter(fecha__lte=last_date)
+        if status is not None and status != "" and int(status) != -1:
+            qs = qs.filter(status=status)
+        if pagado is not None and pagado != "" and int(pagado) != -1:
+            qs = qs.filter(pagado=pagado)
         search = self.request.GET.get('search', None)
         if search is not None and search != "":
             if re.match(r'[0-9]+', search, re.M | re.I):
-                qs = qs.filter(id__qo=search)
+                qs = qs.filter(Q(id=search) | Q(cliente__contact_1__qo=search))
         return qs
 
     @transaction.atomic
@@ -432,23 +457,23 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         discount = request.data['discount'] if request.data['discount'] != '' else 0
         completaSerializer = CompletaOrdenSerializer(data={'total': request.data['total'], 'lente': lente_object.id,
-                                                           'entrega': datetime.datetime.utcfromtimestamp(int(request.data['entrega']/1000)),
+                                                           'entrega': datetime.datetime.utcfromtimestamp(
+                                                               int(request.data['entrega'] / 1000)),
                                                            'discount': discount,
                                                            'inventario': inventarioSerialier.instance.id,
                                                            'cliente': clientSerializer.instance.id,
                                                            'ventalente': lente.get('costo', -1),
                                                            'observaciones': request.data['observaciones'],
-                                                           'usuario':request.user.id},
+                                                           'usuario': request.user.id},
                                                      context={'request': request})
         completaSerializer.is_valid(raise_exception=False)
-        print(completaSerializer.errors)
         completaSerializer.save()
-        #guardar refracciones
+        # guardar refracciones
         ref1 = save_refraccion(request.data['refraccion'], cliente=clientSerializer.instance,
                                propia=request.data['refraccion'].get('propio', True))
         save_refraccion(request.data['refraccion_2'], cliente=clientSerializer.instance,
                         propia=request.data['refraccion'].get('propio', True), orden=completaSerializer.instance.id)
-        #agregas pagos y filtros
+        # agregas pagos y filtros
         if (payform != '' and payform != '0') and (payment != '0' and payment != ''):
             abono = Abono_Completa(pago=payment, orden=completaSerializer.instance, tipo=payform)
             abono.save()
@@ -459,15 +484,15 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
                 return Response({'error': ['Hubo un error al guardar, ingrese la información nuevamente']},
                                 status=status.HTTP_400_BAD_REQUEST)
             completaSerializer.instance.filtros.add(filter)
-        parseDataToOrder(completaSerializer.instance, ref1)
-        return completa_pdf(parseDataToOrder(completaSerializer.instance, ref1))
+        return completa_pdf(parseDataToOrder(completaSerializer.instance, request, ref1))
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         datos = dict(serializer.data)
-        for x in ['id','filtros','lente','inventario','uri','client','fecha','entrega','abonos','status']:
-            datos.pop(x,None)
+        for x in ['id', 'filtros', 'lente', 'inventario', 'uri', 'client', 'fecha', 'entrega', 'abonos', 'status',
+                  'abono']:
+            datos.pop(x, None)
         filtros = instance.filtros.all()
         datos['id'] = "{:06.0f}".format(instance.id)
         datos['status'] = order_status(instance.status)
@@ -475,14 +500,17 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
         abonado = 0
         import locale
         locale.setlocale(locale.LC_ALL, 'es_GT.utf8')
-        for pay in  instance.abonos_completa.all():
-            abonos.append([pay.id,"Q. {} pagado con {} el {}".format(pay.pago,payment_type(pay.tipo),pay.fecha.strftime("%A, %d de %B de %Y").title()),pay.active])
+        for pay in instance.abonos_completa.all():
+            abonos.append([pay.id, "Q. {} pagado con {} el {}".format(pay.pago, payment_type(pay.tipo),
+                                                                      pay.fecha.strftime("%A, %d de %B de %Y").title()),
+                           pay.active])
             if pay.active:
                 abonado += pay.pago
         datos['abonos'] = abonos
-        datos['cliente'] = "{} {}".format(instance.cliente.firstname,instance.cliente.lastname)
-        datos['lente'] = "{} - {} - {}".format(instance.lente.color, instance.lente.tipo,instance.lente.material)
-        datos['aro'] = "{} / {} / {}".format(instance.inventario.aro.marca.name,instance.inventario.aro.color,instance.inventario.aro.modelo)
+        datos['cliente'] = "{} {}".format(instance.cliente.firstname, instance.cliente.lastname)
+        datos['lente'] = "{} - {} - {}".format(instance.lente.color, instance.lente.tipo, instance.lente.material)
+        datos['aro'] = "{} / {} / {}".format(instance.inventario.aro.marca.name, instance.inventario.aro.color,
+                                             instance.inventario.aro.modelo)
         datos['filtros'] = []
         datos['fecha'] = instance.fecha.strftime("%A, %d de %B de %Y").title()
         datos['abonado'] = abonado
@@ -494,31 +522,47 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        estado = request.data.get('status', instance.status)
+        if request.method == 'PATCH':
+            lente = request.data.get('lente',None)
+            if lente is not None:
+                lab = get_object_or_None(Laboratorio,pk=lente.get('laboratorio',-1))
+                if lab is None:
+                    return Response({'errors':['No se encontró el laboratorio, contactese con el desarrollador.']},status=status.HTTP_404_NOT_FOUND)
+                instance.laboratorio = lab
+                if decimal.Decimal(lente.get('costo',-1)) <= 0:
+                    return Response({'errors':['El costo del lente debe ser mayor a 0']},status=status.HTTP_400_BAD_REQUEST)
+                instance.costolente = decimal.Decimal(lente.get('costo'))
+            if instance.status == 4:
+                return Response({'errors':['No se puede reactivar una orden cancelada.']},status=status.HTTP_400_BAD_REQUEST)
+            if estado != instance.status:
+                instance.status = estado
+            if 'notas' in request.data:
+                if request.data.get('notas', None) is not None:
+                    instance.notas += "{}: {} [{}] || ".format(order_status(estado).upper(),request.data.get('notas').lower(),
+                                                            datetime.datetime.utcnow().strftime('%d-%m-%Y'))
+            instance.save()
 
         if getattr(instance, '_prefetched_objects_cache', None):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
-
-        return Response(serializer.data)
+        return Response(status=status.HTTP_200_OK)
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return CompletaOrdenInfoSerializer
         return CompletaOrdenSerializer
 
-    @action(methods=['post','delete'], detail=True,permission_classes=[permissions.DjangoModelPermissions])
+    @transaction.atomic
+    @action(methods=['post', 'delete'], detail=True, permission_classes=[permissions.DjangoModelPermissions])
     def save_abono(self, request, uuid=None):
         orden = self.get_object()
         if request.method == 'DELETE':
             body_unicode = request.body
             body = json.loads(body_unicode)
-            print(body)
             abono = orden.abonos_completa.all().filter(pk=body.get('id'))
-            if(len(abono) != 1):
+            if (len(abono) != 1):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
             orden.notas = orden.notas + "ABONO CANCELADO: {} RAZÓN: {} || ".format(
                 "Q.{} / {}  / {}".format(abono[0].pago, payment_type(abono[0].tipo),
@@ -526,25 +570,45 @@ class CompletaOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
             orden.save()
             abono[0].active = False
             abono[0].save()
-            return Response({'id':abono[0].id,'abono':abono[0].pago},status=status.HTTP_200_OK)
+            return Response({'id': abono[0].id, 'abono': abono[0].pago}, status=status.HTTP_200_OK)
         if request.method == 'POST':
             body_unicode = request.body
             body = json.loads(body_unicode)
-            return Response({'abondancieri': 'El pato'})
+            if body.get('fecha', None) is not None:
+                nuevo_abono = Abono_Completa(tipo=body.get('payform', 1), pago=body.get('payment', -1), orden=orden,
+                                             fecha=datetime.datetime.utcfromtimestamp(
+                                                 int(body.get('fecha') / 1000)).date())
+            else:
+                nuevo_abono = Abono_Completa(tipo=body.get('payform', 1), pago=body.get('payment', -1), orden=orden)
+            nuevo_abono.save()
+            pay = 0
+            for i in orden.abonos_completa.all().filter(active=True):
+                pay += i.pago
+            if pay == orden.total:
+                orden.pagado = 2
+                orden.save()
+            elif pay > 0:
+                orden.pagado = 1
+                orden.save()
+            import locale
+            locale.setlocale(locale.LC_ALL, 'es_GT.utf8')
+            return Response({'pagado': orden.pagado,
+                             'info': "Q. {:.2f} pagado con {} el {}".format(decimal.Decimal(nuevo_abono.pago),
+                                                                            payment_type(int(nuevo_abono.tipo)),
+                                                                            nuevo_abono.fecha.strftime(
+                                                                                "%A, %d de %B de %Y").title()),
+                             'id': nuevo_abono.id, 'abonado': pay})
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=['get'], detail=True, permission_classes=[permissions.DjangoModelPermissions])
-    def print_pdf(self,request,uuid=None):
+    def print_pdf(self, request, uuid=None):
         if request.method == 'GET':
             orden = self.get_object()
-            ref = orden.cliente.refraction.all().filter(fecha=orden.fecha,orden=orden.id)
-            print('----------------------------')
-            print(ref.first())
-            print(orden)
-            print('---------***--***-----------')
-            refSerializer = RefractionSerializer(instance = ref.first())
-            return completa_pdf(parseDataToOrder(orden,refSerializer))
+            ref = orden.cliente.refraction.all().filter(fecha=orden.fecha, orden=orden.id)
+            refSerializer = RefractionSerializer(instance=ref.first())
+            return completa_pdf(parseDataToOrder(orden, request, refSerializer))
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
 
 def parse_to_server(data):
     datos = {'ASC-OD-FAR': {'eje': data.get('ejeODF', 0), 'cilindro': data.get('cilODF', 0),
@@ -563,6 +627,148 @@ def parse_to_server(data):
              'observaciones': data.get('observaciones', '')}
 
     return datos
+
+class LenteOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
+    serializer_class = LenteOrdenSerializer
+    pagination_class = DefaultPagination
+    lookup_field = 'uuid'
+
+    def get_queryset(self):
+        qs = Lente_Orden.objects.all().order_by('id', 'fecha')
+        ini_date = self.request.GET.get('ini_date', None)
+        last_date = self.request.GET.get('last_date', None)
+        ini_bool = ini_date is not None and ini_date != ""
+        last_bool = last_date is not None and last_date != ""
+        if ini_bool or last_bool:
+            # *[int(v) for v in ini_date.replace('T', '-').replace(':', '-').split('-')]
+            if ini_bool and last_bool:
+                qs = qs.filter(fecha__range=(ini_date, last_date))
+            elif ini_bool and not last_bool:
+                qs = qs.filter(fecha__gte=ini_date)
+            elif not ini_bool and last_bool:
+                qs = qs.filter(fecha__lte=last_date)
+        search = self.request.GET.get('search', None)
+        if search is not None and search != "":
+            if re.match(r'[0-9]+', search, re.M | re.I):
+                qs = qs.filter(Q(id=search) | Q(cliente__contact_1__qo=search))
+        return qs
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        print('--------------------')
+        print(request.data)
+        print('--------------------')
+        client_data = request.data['cliente']
+        if client_data['contact_2'] == "":
+            del client_data['contact_2']
+        client_id = client_data.pop('id', None)
+        if client_id is not None:
+            client = get_object_or_None(Cliente, pk=client_id)
+            if client is None:
+                return Response({'error': ['Hubo un error al guardar, ingrese nuevamente']},
+                                status=status.HTTP_400_BAD_REQUEST)
+            clientSerializer = ClienteSerializer(instance=client, data=client_data, context={'request': request})
+            clientSerializer.is_valid(raise_exception=True)
+            clientSerializer.save()
+        else:
+            clientSerializer = ClienteSerializer(data=client_data, context={'request': request})
+            clientSerializer.is_valid(raise_exception=True)
+            clientSerializer.save()
+        lente = request.data['lente']
+        lente_object = get_object_or_None(Lente, pk=lente.get('lente', -1))
+        payform = request.data['payform']
+        payment = request.data['payment']
+        if lente_object is None:
+            return Response({'error': ['Hubo un error al guardar, ingrese la información nuevamente']},
+                            status=status.HTTP_400_BAD_REQUEST)
+        discount = request.data['discount'] if request.data['discount'] != '' else 0
+        lenteSerializer = LenteOrdenSerializer(data={'total': request.data['total'],
+                                                   'lente': lente_object.id,
+                                                   'entrega': datetime.datetime.utcfromtimestamp(
+                                                           int(request.data['entrega'] / 1000)),
+                                                   'discount': discount,
+                                                   'cliente': clientSerializer.instance.id,
+                                                   'ventalente': lente.get('costo', -1),
+                                                   'observaciones': request.data['observaciones'],
+                                                   'usuario': request.user.id},
+                                                    context={'request': request})
+        lenteSerializer.is_valid(raise_exception=True)
+        lenteSerializer.save()
+        if payment != '' or payment != 0:
+            abono = Abono_Lente(pago=payment, orden=lenteSerializer.instance, tipo=payform)
+            abono.save()
+        return Response({'orden': lenteSerializer.data}, status=status.HTTP_201_CREATED)
+
+class RepairOrdenViewSet(DefaultsMixin, DefaultModelViewSet):
+    serializer_class = RepairOrdenSerializer
+    pagination_class = DefaultPagination
+    lookup_field = 'uuid'
+
+    def get_queryset(self):
+        qs = Lente_Orden.objects.all().order_by('id', 'fecha')
+        ini_date = self.request.GET.get('ini_date', None)
+        last_date = self.request.GET.get('last_date', None)
+        ini_bool = ini_date is not None and ini_date != ""
+        last_bool = last_date is not None and last_date != ""
+        if ini_bool:
+            ini_date = datetime.datetime(*[int(v) for v in ini_date.replace('T', '-').replace(':', '-').split('-')])
+        if last_bool:
+            last_date = datetime.datetime(*[int(v) for v in last_date.replace('T', '-').replace(':', '-').split('-')])
+        if ini_bool or last_bool:
+            if ini_bool and last_bool:
+                qs = qs.filter(fecha__range=(ini_bool, last_bool))
+            elif ini_bool and not last_bool:
+                qs = qs.filter(fecha__gte=ini_date)
+            elif not ini_bool and last_bool:
+                qs = qs.filter(fecha__lte=last_date)
+        search = self.request.GET.get('search', None)
+        if search is not None and search != "":
+            if re.match(r'[0-9]+', search, re.M | re.I):
+                qs = qs.filter(Q(id=search) | Q(cliente__contact_1__qo=search))
+        return qs
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        client_data = request.data['cliente']
+        if client_data['contact_2'] == "":
+            del client_data['contact_2']
+        client_id = client_data.pop('id', None)
+        if client_id is not None:
+            client = get_object_or_None(Cliente, pk=client_id)
+            if client is None:
+                return Response({'error': ['Hubo un error al guardar, ingrese nuevamente']},
+                                status=status.HTTP_400_BAD_REQUEST)
+            clientSerializer = ClienteSerializer(instance=client, data=client_data, context={'request': request})
+            clientSerializer.is_valid(raise_exception=True)
+            clientSerializer.save()
+        else:
+            clientSerializer = ClienteSerializer(data=client_data, context={'request': request})
+            clientSerializer.is_valid(raise_exception=True)
+            clientSerializer.save()
+        inventario_id = request.data['inventario']
+        inventario = get_object_or_None(Inventario, pk=inventario_id)
+        if inventario is None:
+            return Response({'error': ['Hubo un error al guardar, ingrese la información nuevamente']},
+                            status=status.HTTP_400_BAD_REQUEST)
+        inventarioSerialier = InventarioSerializer(instance=inventario, data={'ventas': 1}, partial=True)
+        inventarioSerialier.is_valid(raise_exception=True)
+        inventarioSerialier.save()
+        discount = request.data['discount'] if request.data['discount'] != '' else 0
+        aroSerializer = AroOrdenSerializer(
+            data={'total': request.data['total'], 'observaciones': request.data['observaciones'],
+                  'entrega': datetime.datetime(
+                      *[int(v) for v in request.data['entrega'].replace('T', '-').replace(':', '-').split('-')]),
+                  'discount': discount, 'inventario': inventarioSerialier.instance.id,
+                  'cliente': clientSerializer.instance.id},
+            context={'request': request})
+        aroSerializer.is_valid(raise_exception=True)
+        aroSerializer.save()
+        abono_value = request.data['payment']
+        if abono_value != '' or abono_value != 0:
+            abono = Abono_Aro(pago=abono_value, orden=aroSerializer.instance, tipo=request.data['payform'])
+            abono.save()
+        return Response({'orden': aroSerializer.data}, status=status.HTTP_201_CREATED)
+
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -584,7 +790,7 @@ def refraction_detail(request, pk):
                                                                             propia=refraction.propia))
         if serializer.is_valid():
             serializer.save()
-            return Response({'obs':serializer.data['observaciones']})
+            return Response({'obs': serializer.data['observaciones']})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':

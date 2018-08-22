@@ -146,15 +146,20 @@ class OpticaSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super(OpticaSerializer, self).__init__(*args, **kwargs)
         request = kwargs['context']['request']
-        partial = 'partial' in request.GET
-        if partial:
-            for k in list(self.fields.keys()):
-                if k != 'id' and k != 'name':
-                    self.fields.pop(k)
+        if request.method == 'GET':
+            partial = 'partial' in request.GET
+            if partial:
+                for k in list(self.fields.keys()):
+                    if k != 'id' and k != 'name':
+                        self.fields.pop(k)
+            else:
+                self.fields.pop('photo')
+                self.fields.pop('redes')
+
 
     class Meta:
         model = Optica
-        fields = ('id', 'uri', 'name', 'direction', 'contact_1', 'contact_2', 'email')
+        exclude = ['uuid']
         read_only = ['uri']
         validators = [
             serializers.UniqueTogetherValidator(
@@ -163,6 +168,14 @@ class OpticaSerializer(serializers.ModelSerializer):
                 message="Esa sucursal ya fue registrada"
             ),
         ]
+
+    def create(self, validated_data):
+        file = validated_data.pop('photo',None)
+        opt = super(OpticaSerializer,self).create(validated_data)
+        if file is not None and file != "":
+            opt.photo = file
+            opt.save()
+        return opt
 
     def validate_name(self, value):
         return value.title()
@@ -290,6 +303,18 @@ class LaboratorioSerializer(serializers.ModelSerializer):
             for k in list(self.fields.keys()):
                 if k != 'id' and k != 'name':
                     self.fields.pop(k)
+
+    def to_representation(self, instance):
+        representation = super(LaboratorioSerializer, self).to_representation(instance)
+        if len(representation) > 2:
+            return representation
+
+        id = representation.pop('id')
+        name = representation.pop('name')
+
+        repackage = {id: name}
+
+        return repackage
 
     def validate_contact_1(self, value):
         if get_count_digits(value) != 8:

@@ -6,7 +6,10 @@ from django.db.models import Lookup, Field
 from .utils import get_count_digits
 
 
-def optica_path(instance):
+def optica_path(instance,filename):
+    print(':O')
+    print(instance)
+    print('-----------------------------')
     return 'logos/logo_{0}'.format(instance.id)
 
 class Optica(models.Model):
@@ -18,9 +21,9 @@ class Optica(models.Model):
     direction = models.CharField(max_length=255,db_column="direction")
     contact_1 = models.PositiveIntegerField(blank=False, db_column="contact_1")
     contact_2 = models.PositiveIntegerField(null=True, db_column="contact_2")
-    photo = models.FileField(verbose_name=('Logo'), upload_to=optica_path
-                             , max_length=255, null=True, blank=True)
+    photo = models.FileField(verbose_name=('Logo'), upload_to=optica_path, max_length=255, null=True, blank=True)
     email = models.EmailField(db_column="email",blank=True,default="correo@correo.com")
+    redes = models.CharField(max_length=255,blank=True)
     uuid = models.UUIDField(    #usado por el api para buscar el registro
         db_index=True,
         default=uuid_lib.uuid4,
@@ -191,3 +194,4 @@ class Quotient(Lookup):
         return '{} / {} = {}'.format(lhs,'%s',rhs), params
 
 Field.register_lookup(Quotient)
+

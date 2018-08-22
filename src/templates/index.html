@@ -28,24 +28,22 @@
     <template id="orden-template">
       <ul class="top-lvl-dd">
         <li>
-          <button id="orden-aro"><label>ORDEN ARO</label></button>
+          <button id="orden-aro"><label for="orden-aro">Orden Aro</label></button>
         </li>
         <li>
-          <button id="orden-completa"><label>ORDEN COMPLETA</label></button>
+          <button id="orden-completa"><label for="orden-completa">Orden Completa</label></button>
         </li>
         <li>
-          <button id="orden-lente"><label>ORDEN LENTE</label></button>
+          <button id="orden-lente"><label for="orden-lente">Orden Lente</label></button>
         </li>
         <li>
-          <button id="orden-repair"><label>ORDEN REPARACIÓN</label></button>
+          <button id="orden-repair"><label for="orden-repair">Orden Reparación</label></button>
         </li>
       </ul>
     </template>
     <template id="table-template">
       <link href="{% static 'css/table-sd.css' %}" rel="stylesheet">
-      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css"
-      integrity="sha384-5SOiIsAziJl6AWe0HWRKTXlfcSHKmYV4RBF18PPJ173Kzn7jzMyFuTtk8JA7QQG1"
-      crossorigin="anonymous">
+      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css">
       <c-form class='table-header'>
         <form>
           <div class="f-left">
@@ -60,7 +58,7 @@
             <input placeholder='Busqueda e.g.: 500' name='search'>
             <button class='fa fa-search' type='submit'>
           </div>
-          <div class="extra-filter"></div>
+          <div class="extra-filter"><div></div></div>
         </form>
       </c-form>
       <table class="basic-lines">
@@ -73,24 +71,31 @@
     </template>
     <template id="input-template">
       <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.9/css/all.css">
+
       <style>
         @keyframes pulse {
           0%  { box-shadow: 0 0 0 0 #f94340; }
           50% { box-shadow: 0 0 0 15px rgba(249, 67, 64,0.5);}
           100% { box-shadow: 0 0 0 30px transparent; }
         }
-        .titulo{
+        .titulo.inputc-style{
           font-size: 3.5vh;
           color: var(--inputc-title-color,#4682B4);
           position: relative;
+          height: 5vh;
         }
 
-        .titulo > span.inputc-style {
+        .titulo.inputc-style > span.inputc-style {
           position: absolute;
           right: 0;
           line-height: inherit;
           font-size: medium;
           padding-top: 4px;
+        }
+
+        .titulo.inputc-style > label.inputc-style{
+          position: absolute;
+          left: 0;
         }
 
         input.inputc-style, input.inputc-style:focus{
@@ -108,12 +113,12 @@
           box-shadow: 0px 9px 12px -5px rgba(11,11,11,.75);
         }
 
-        input.inputc-style[readonly]{ cursor: not-allowed; --inputc-input-fcolor:white; }
-        input.inputc-style.success[readonly]:focus{--inputc-input-fbg:#24b944; border-color:#24b944;}
-        input.inputc-style.error[readonly]:focus{--inputc-input-fbg:#f94340; border-color: #f94340;}
+        input.inputc-style[disabled]{ cursor: not-allowed; --inputc-input-fcolor:white; }
+        input.inputc-style.success[disabled]:focus{--inputc-input-fbg:#24b944; border-color:#24b944;}
+        input.inputc-style.error[disabled]:focus{--inputc-input-fbg:#f94340; border-color: #f94340;}
 
         span.inputc-style { transition: 1s; color:var(--inputc-span-bg,#021b2b); }
-        input.inputc-style[type="file"]{ --inputc-input-bg:transparent; }
+        input.inputc-style[type="file"]{ --inputc-input-bg:#e6ecf0; }
         input.inputc-style.success[type="file"] { --inputc-input-bg:#24b944; }
         input.inputc-style.error[type="file"]   { --inputc-input-bg:#f94340; animation: pulse .5s ease-in; }
         input.inputc-style[type="file"]::-webkit-file-upload-button{
@@ -135,23 +140,23 @@
         .fa.fa-times-circle { --inputc-span-bg:#f94340;}
         select:focus,button:focus {outline:0;}
 
-        .legend{
+        .legend.inputc-style{
           margin-top:10px;
           font-size: 2vh;
           color: var(--inputc-legend-color,#ccc);
         }
       </style>
-      <div class="titulo">
-        <label></label>
+      <div class="titulo inputc-style">
+        <label class="inputc-style"></label>
         <span class="inputc-style fa"></span>
       </div>
       <input class="inputc-style">
-      <label class="legend"></label>
+      <label class="legend inputc-style"></label>
     </template>
     <template id="newlente-template">
-      <c-form>
+      <c-form style="margin-top:10vh">
         <form>
-          <h1><center>Nuevo lente</center></h1>
+          <h1>Nuevo lente</h1>
           <hr class="linear" />
           <div class="split">
             <c-input
@@ -193,7 +198,7 @@
     <template id="newempleado-template">
       <c-form>
         <form>
-          <h1><center>Nuevo empleado</center></h1>
+          <h1>Nuevo empleado</h1>
           <hr class="linear" />
           <div class="split">
             <c-input
@@ -276,7 +281,7 @@
     <template id="newlaboratorio-template">
       <c-form name="laboratorio">
         <form>
-          <h1><center>Nuevo laboratorio<center></h1>
+          <h1>Nuevo laboratorio</h1>
           <hr class="linear" />
           <c-input
           message = "El nombre del laboratorio es obligatorio."
@@ -316,20 +321,48 @@
     <template id="newaro-template">
       <c-form>
         <form>
-          <h1><center>Nuevo tipo de aro</center></h1>
+          <h1>Nuevo tipo de aro</h1>
           <hr class="linear" />
-          <c-input titulo="Color del aro"
-          message="Obligatorio, el color del aro puede aceptar números, letras,#,_,-"
-          name="color"
-          pattern="^[0-9A-Za-z_\-\#]+$"
-          required
-          ></c-input>
-          <c-input titulo="Modelo del aro"
-            message="Obligatorio, el modelo del aro puede aceptar números, letras,#,_,-"
-            name="modelo"
+          <div class="split">
+            <c-input titulo="Color del aro"
+            message="Obligatorio, el color del aro puede aceptar números, letras,#,_,-"
+            name="color"
             pattern="^[0-9A-Za-z_\-\#]+$"
             required
             ></c-input>
+            <c-input titulo="Modelo del aro"
+              message="Obligatorio, el modelo del aro puede aceptar números, letras,#,_,-"
+              name="modelo"
+              pattern="^[0-9A-Za-z_\-\#]+$"
+              required
+              ></c-input>
+          </div>
+          <div class='split'>
+            <div>
+              <label class = 'title'> Tipo (Material): </label>
+                <input type="radio" id="acetato" name="material" value="1">
+                <div class="radiogroup">
+                <label for="masculino">Acetato</label>
+                <input type="radio" id="metal" name="material" value="2">
+                <label for="metal">Metal</label>
+              </div>
+              <label class="legend">Debe seleccionar el material del aro</label>
+            </div>
+            <div class="information">
+              <label class = 'title'> Aro para: </label>
+              <div class="radiogroup">
+                <input type="radio" id="masculino" name="grupo" value="1">
+                <label for="masculino">Hombre</label>
+                <input type="radio" id="femenino" name="grupo" value="2">
+                <label for="femenino">Mujer</label>
+                <input type="radio" id="infante" name="grupo" value="3">
+                <label for="infante">Niños</label>
+                <input type="radio" id="unisex" name="grupo" value="0">
+                <label for="unisex">Unisex</label>
+              </div>
+              <label class="legend">Debe seleccionar el grupo al que pertenece el aro</label>
+            </div>
+          </div>
           <c-select titulo="Marca"
           name="marca"
           message="Obligatorio, seleccione una marca de la lista"
@@ -398,7 +431,7 @@
     <template id="newproveedor-template">
         <c-form name="proveedor">
           <form>
-            <h1><center>Nuevo proveedor<center></h1>
+            <h1>Nuevo proveedor</h1>
             <hr class="linear" />
             <c-input
             message = "El nombre del proveedor es obligatorio."
@@ -438,7 +471,7 @@
     <template id="newmarca-template">
         <c-form name="marca">
           <form>
-            <h1><center>Nueva marca<center></h1>
+            <h1>Nueva marca</h1>
             <hr class="linear" />
             <c-input
             titulo="Nombre de la marca"
@@ -469,7 +502,7 @@
     <template id="optica-template">
       <c-form>
         <form>
-          <h1><center>Nueva sucursal<center></h1>
+          <h1>Nueva sucursal</h1>
           <hr class="linear" />
           <div class="split">
             <c-input
@@ -498,6 +531,7 @@
             message = "Logo de la sucursal que se mostrará en la orden"
             name = "photo"
             tipo = "file"
+            required
             images
             ></c-input>
           </div>
@@ -505,8 +539,8 @@
             <c-input
             message = "Este número de contacto es obligatorio."
             titulo = "Número de contacto"
-            name = "contact_1"
             required
+            name = "contact_1"
             pattern = "^[0-9]{8,8}$"
             ></c-input>
             <c-input
@@ -516,6 +550,12 @@
             pattern = "^[0-9]{8,8}$"
             ></c-input>
           </div>
+          <c-input
+          message = "Redes sociales que apareceran en la orden, separarlas por un espacio"
+          titulo = "Redes sociales"
+          name = "redes"
+          pattern = "^[\\\/A-Za-z0-9\#\-_\:\.\s\@]+$"
+          ></c-input>
           <hr class="linear" />
           <div class="cform-btns">
             <button type="submit">
@@ -527,8 +567,8 @@
     </template>
     <template id="newfiltro-template">
       <c-form>
-        <form>
-          <h1><center>Nuevo filtro<center></h1>
+        <form style="margin-top: 10%;">
+          <h1>Nuevo filtro</h1>
           <hr class="linear" />
           <c-input
           titulo="Nombre del filtro"
@@ -572,7 +612,11 @@
         <nav class="sidebar">
             <ul>
                 <li><a href="/">Home<span class="pull-right fa fa-home"></span></a></li>
+                <li class="divisor"></li>
                 <li><a href="/#inventario">Inventario<span class="pull-right fa fa-database"></span></a></li>
+                <li><a href="/#lente">Lentes<span class="pull-right fa fa-eye"></span></a></li>
+                <li><a href="/#optica">Optica<span class="pull-right fa fa-building"></span></a></li>
+                <li class="divisor"></li>
                 <li><a href="/#ordenes">Ordenes<span class="pull-right fa fa-clone"></span></a></li>
             </ul>
         </nav>
@@ -581,7 +625,7 @@
     <template id="new-inv-detail-template">
       <c-form>
         <form>
-          <h1><center>Nuevo lote en inventario<center></h1>
+          <h1>Nuevo lote en inventario</h1>
           <hr class="linear" />
           <c-select
           message = "Optica a la que pertenece el aro"
@@ -632,139 +676,47 @@
     <template id="inventario-template">
       <ul class="top-lvl-dd">
         <li>
-          <a>Lente</a>
+          <a><label>Subir Inventario</label></a>
           <ul class="first-lvl-dd">
             <li>
-                <a>Laboratorio</a>
-                <ul class="second-lvl-dd last">
-                  <li>
-                    <button id="new-laboratorio"> Nuevo </button>
-                  </li>
-                  <li>
-                    <button id="laboratorio-gestion"> Gestión </button>
-                  </li>
-                </ul>
+              <button id="new-lote-full">Subir lote</button>
             </li>
             <li>
-                <a>Filtro</a>
-                <ul class="second-lvl-dd last">
-                  <li>
-                    <button id="new-filtro"> Nuevo </button>
-                  </li>
-                  <li>
-                    <button id="filtro-gestion"> Gestión </button>
-                  </li>
-                </ul>
+              <button id="new-proveedor">Nuevo proveedor</button>
             </li>
             <li>
-                <a>Tipo</a>
-                <ul class="second-lvl-dd last">
-                  <li>
-                    <button id="new-tipolente"> Nuevo </button>
-                  </li>
-                  <li>
-                    <button id="tipolente-gestion"> Gestión </button>
-                  </li>
-                </ul>
+              <button id="new-marca">Nueva marca</button>
+            </li>
+            <li>
+              <button id="new-lote">Nuevo aro</button>
             </li>
           </ul>
         </li>
         <li>
-          <a>Aro</a>
+          <a><label>Gestionar Inventario</label></a>
           <ul class="first-lvl-dd">
             <li>
-                <a>Proveedor</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button id="prov-gestion">Gestión</button>
-                  </li>
-                  <li>
-                    <button id="new-proveedor">Nuevo</button>
-                  </li>
-                </ul>
+              <button id="gest-lote">Gestionar lotes</button>
             </li>
             <li>
-              <a>Marca</a>
-              <ul class="second-lvl-dd">
-                <li>
-                  <button id="marca-gestion">Gestión</button>
-                </li>
-                <li>
-                  <button id="new-marca">Nuevo</button>
-                </li>
-              </ul>
+              <button id="gest-proveedor">Gestionar proveedores</button>
             </li>
             <li>
-                <a>Tipo</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button id="aro-gestion">Gestión</button>
-                  </li>
-                  <li>
-                    <button id="new-aro">Nuevo</button>
-                  </li>
-                </ul>
+              <button id="gest-marca">Gestionar marcas</button>
+            </li>
+            <li>
+              <button id="gest-aro">Gestionar aros</button>
             </li>
           </ul>
         </li>
         <li>
-          <a>Optica</a>
+          <a><label>Imprimir inventario</label></a>
           <ul class="first-lvl-dd">
             <li>
-                <a>Sucursal</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button id="sucursal">Gestión</button>
-                  </li>
-                  <li>
-                    <button id="new-sucursal">Nuevo</button>
-                  </li>
-                </ul>
+              <button id="print-lote">Imprimir lotes</button>
             </li>
             <li>
-                <a>Inventario</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button id="inv-sucursal">Gestión</button>
-                  </li>
-                  <li>
-                    <button id="new-inv-sucursal">Nuevo</button>
-                  </li>
-                </ul>
-            </li>
-            <li>
-                <a>Gastos</a>
-            </li>
-          </ul>
-        </li>
-        <li>
-          <a>Gasto</a>
-          <ul class="first-lvl-dd">
-            <li>
-                <a>Descripción</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button>Nuevo</button>
-                  </li>
-                  <li>
-                    <button>Gestión</button>
-                  </li>
-                </ul>
-            </li>
-          </ul>
-        </li>
-        <li><a>Planilla</a>
-          <ul class="first-lvl-dd">
-            <li>
-                <a>Empleados</a>
-                <ul class="second-lvl-dd">
-                  <li>
-                    <button id="empleado">Gestionar</button>
-                  </li>
-                  <li>
-                    <button id="new-empleado">Nuevo</button>
-                  </li>
-                </ul>
+              <button id="print-algo">Imprimir</button>
             </li>
           </ul>
         </li>

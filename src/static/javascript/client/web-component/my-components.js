@@ -7,7 +7,7 @@ let template = document.getElementById("table-template"),
         integrity="sha384-5SOiIsAziJl6AWe0HWRKTXlfcSHKmYV4RBF18PPJ173Kzn7jzMyFuTtk8JA7QQG1" crossorigin="anonymous">
       <style>
 
-      @keyframes pulse {
+      @keyframes pulseSel {
         0%  { box-shadow: 0 0 0 0 #f94340; }
         50% { box-shadow: 0 0 0 15px rgba(249, 67, 64,0.5);}
         100% { box-shadow: 0 0 0 30px transparent; }
@@ -28,6 +28,8 @@ let template = document.getElementById("table-template"),
 
       .sel-titulo label {
         padding: var(--selc-label-padding,0);
+        position: var(--selc-label-position,absolute);
+        left: 0;
       }
 
       .sel-titulo > span {
@@ -44,6 +46,7 @@ let template = document.getElementById("table-template"),
         display: var(--selc-title-display,block);
         width: var(--selc-title-width,auto);
         position: relative;
+        height:5vh;
       }
 
       .sel-legend{
@@ -52,10 +55,10 @@ let template = document.getElementById("table-template"),
         display: var(--selc-legend--display, block);
       }
 
-      span.fa.fa-check-circle { color: #15ff5f; }
+      span.fa.fa-check-circle { color: #24b944; }
       span.fa.fa-times-circle { color: #f94340; }
-      .success { background-color:#15ff5f; color:white; }
-      .error   { background-color:#f94340; color:white; animation: pulse 0.5s ease-in;}
+      .success { background-color:#24b944; color:white; }
+      .error   { background-color:#f94340; color:white; animation: pulseSel 0.5s ease-in;}
 
       </style>
       <div class="sel-titulo">
@@ -76,6 +79,26 @@ class CTable extends HTMLElement {
       this.attachShadow({mode: 'open'});
       this.shadowRoot.innerHTML = template.innerHTML;
       this._cform = this.shadowRoot.querySelector('c-form');
+    }
+
+    createFilterControl(){
+      let refNode = this._cform.querySelector('div.f-right');
+      if(refNode.parentNode.querySelector('#filter-control')) return;
+      let btn = document.createElement('button');
+      btn.innerHTML = 'Más filtros <span class="fas fa-caret-down"></span>';
+      this._controlFn = function(event){
+        if(!this.getFilters().parentNode.hasAttribute('style')){
+          event.currentTarget.innerHTML = 'Esconder <span class="fas fa-caret-up"></span>';
+          this.getFilters().parentNode.setAttribute('style','display:block');
+        }else{
+          event.currentTarget.innerHTML = 'Más filtros <span class="fas fa-caret-down"></span>';
+          this.getFilters().parentNode.removeAttribute('style');
+        }
+      }.bind(this);
+      btn.id = 'filter-control';
+      btn.type = 'button';
+      btn.addEventListener('click',this._controlFn)
+      refNode.parentNode.insertBefore(btn,refNode);
     }
 
     fetchCollection(page){
@@ -113,7 +136,7 @@ class CTable extends HTMLElement {
     }
 
     getFilters(){
-      return this.shadowRoot.querySelector('div.extra-filter');
+      return this.shadowRoot.querySelector('div.extra-filter > div');
     }
 
     setStyle(innerStyle){
@@ -125,12 +148,14 @@ class CTable extends HTMLElement {
     * FUNCIONES NATIVAS
     */
     connectedCallback(){
-        this.createFooter();
         this.renderStyle();
         this.renderHeader();
-        this.renderFooter();
     }
 
+    disconnectedCallback(){
+      if(this._controlFn)
+        this.shadowRoot.querySelector('#filter-control').removeEventListener('click',this._controlFn);
+    }
     /*
     * FUNCIONES DE RENDERIZADO
     */
@@ -207,38 +232,41 @@ class CTable extends HTMLElement {
     }
 
     createFooter(){
-        this._buttonsFooter = [];
 
-        let prevBtn     = document.createElement('Button'),
-            currentBtn  = document.createElement('Button'),
-            nextBtn     = document.createElement('Button');
+      if(this._buttonsFooter) return;
 
-        prevBtn.setAttribute('class','fa fa-backward');
-        nextBtn.setAttribute('class','fa fa-forward');
+      this._buttonsFooter = [];
 
-        this._buttonsFooter.push(prevBtn);
-        this._buttonsFooter.push(currentBtn);
-        this._buttonsFooter.push(nextBtn);
+      let prevBtn     = document.createElement('Button'),
+          currentBtn  = document.createElement('Button'),
+          nextBtn     = document.createElement('Button');
 
-        this._functionReferences = [];
+      prevBtn.setAttribute('class','fa fa-backward');
+      nextBtn.setAttribute('class','fa fa-forward');
 
-        let prevHandler = ()=>{
-          this.fetchCollection(this._collection._current - 1);
-        },
-        currentHandler = ()=>{
-          this.fetchCollection(this._collection._current);
-        },
-        nextHandler = ()=>{
-          this.fetchCollection(this._collection._current + 1);
-        };
+      this._buttonsFooter.push(prevBtn);
+      this._buttonsFooter.push(currentBtn);
+      this._buttonsFooter.push(nextBtn);
 
-        this._functionReferences.push(prevHandler);
-        this._functionReferences.push(currentHandler);
-        this._functionReferences.push(nextHandler);
+      this._functionReferences = [];
 
-        _(this._buttonsFooter).each(function(button,index){
-          button.addEventListener('click',this._functionReferences[index]);
-        },this);
+      let prevHandler = ()=>{
+        this.fetchCollection(this._collection._current - 1);
+      },
+      currentHandler = ()=>{
+        this.fetchCollection(this._collection._current);
+      },
+      nextHandler = ()=>{
+        this.fetchCollection(this._collection._current + 1);
+      };
+
+      this._functionReferences.push(prevHandler);
+      this._functionReferences.push(currentHandler);
+      this._functionReferences.push(nextHandler);
+
+      _(this._buttonsFooter).each(function(button,index){
+        button.addEventListener('click',this._functionReferences[index]);
+      },this);
     }
 
     removeFooter(){
@@ -280,23 +308,19 @@ class CInput extends HTMLElement {
     set disabled(val) {
 
       if (val) {
-        this.setAttribute('disabled', '');
-        this.shadowRoot.querySelector('input').setAttribute('readonly','');
+        this.shadowRoot.querySelector('input').disabled = true;
       } else {
-        this.removeAttribute('disabled');
-        this.shadowRoot.querySelector('input').removeAttribute('readonly','');
+        this.shadowRoot.querySelector('input').disabled = false;
       }
     }
-
 
     attributeChangedCallback(name, oldValue, newValue) {
 
       if (this.disabled) {
-        this.shadowRoot.querySelector('input').setAttribute('readonly','');
+        this.disabled = true;
       } else {
-        this.shadowRoot.querySelector('input').removeAttribute('readonly');
+        this.disabled = false;
       }
-
     }
 
     /*
@@ -305,7 +329,7 @@ class CInput extends HTMLElement {
     get value(){
       if(this._tipo == 'file')
         return this.shadowRoot.querySelector('input').files[0];
-      else if(this._tipo == 'datetime-local')
+      else if(this._tipo == 'datetime-local' || this._tipo == 'date')
         return new Date(this.shadowRoot.querySelector('input').value).getTime();
       else
         return this.shadowRoot.querySelector('input').value;
@@ -350,8 +374,12 @@ class CInput extends HTMLElement {
     set required(val){
       if (val){
         this.setAttribute('required','');
+        this._required = true;
+        this.reset();
       } else{
         this.removeAttribute('required');
+        this._required = false;
+        this.reset();
       }
     }
 
@@ -384,32 +412,35 @@ class CInput extends HTMLElement {
     }
 
     validate(){
+
       let input = this.shadowRoot.querySelector('input'),
           text = input.value;
           /* verificar si es requerido*/
       let empty = text === "" || !(/\S/).test(text);
 
       if(!this._required && empty){
+
         if(this._extraValidationStep)
           return this._extraValidationStep();
+
         return true;
       }
 
       if(this._required && empty) {
-        this.setToolTip.call(this,"Campo obligatorio, llenar");
+        this.setToolTip.call(this,"Este campo es obligatorio, llenar.");
         return false;
       }
 
       if(input.getAttribute('type') == 'email' && input.validity.typeMismatch)
       {
-        this.setToolTip.call(this,"Debe ingresar un correo electrónico válido")
+        this.setToolTip.call(this,"Debe ingresar un correo electrónico válido.")
         return false;
       }
 
       if(this._tipo == 'password' && this._name == 'confirmation_password'){
 
         if(this._password != this.value){
-          this.setToolTip.call(this,"Las contraseñas no coinciden");
+          this.setToolTip.call(this,"Las contraseñas no coinciden.");
           return false;
         }
 
@@ -423,7 +454,7 @@ class CInput extends HTMLElement {
           this.iconChange.call(this,1);
         }else{
           this.setToolTip.call(this,
-          "El patrón no concuerda, revisar el mensaje debajo de la caja de texto");
+          "El valor ingresado es incorrecto, revisar el mensaje debajo de la caja de texto");
           return false;
         }
 
@@ -558,7 +589,7 @@ class CForm extends HTMLElement  {
 
     connectedCallback(){
         this.addEventListener('submit',this.submit);
-        let selects = this.querySelectorAll('select');
+      /*  let selects = this.querySelectorAll('select');
         if(this._collection){
           let func = ()=>{
 
@@ -573,7 +604,7 @@ class CForm extends HTMLElement  {
           selects.forEach(function(Element){
               Element.addEventListener('change',func);
           });
-        }
+        } */
     }
 
     disconnectedCallback(){
@@ -582,7 +613,32 @@ class CForm extends HTMLElement  {
       selects.forEach(function(Element){
         Element.removeEventListener('change',this._changeFunction);
       }.bind(this));
+    }
 
+    static get observedAttributes() {
+      return ['disabled'];
+    }
+
+    get disabled() {
+      return this.hasAttribute('disabled');
+    }
+
+    set disabled(val) {
+
+      if (val) {
+        this.querySelectorAll('c-input,c-select,input,c-datepicker,textarea').forEach(item=>item.disabled = true)
+      } else {
+        this.querySelectorAll('c-input,c-select,input,c-datepicker,textarea').forEach(item=>item.disabled = false)
+      }
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+
+      if (this.disabled) {
+        this.disabled = true;
+      } else {
+        this.disabled = false;
+      }
     }
 
     set collection(coll){
@@ -625,7 +681,7 @@ class CForm extends HTMLElement  {
 
     parseData(page){
 
-      let data = this.serializeForm();
+      let data = this.serializeForm(true);
       // Determinar si existe parámetro página.
       page && (data['page'] = page);
       //Retornamos "" si no tiene elementos y el objeto caso contrario
@@ -643,12 +699,20 @@ class CForm extends HTMLElement  {
       this.insertBefore(stylesheet, this.firstChild);
     }
 
-    reset(){
+    reset(all = false){
 
-      let cinputs = this.querySelectorAll('c-input');
+      let elements = null;
 
-      cinputs.forEach(function(el){
-        el.reset();
+      if (all)
+        elements = this.querySelectorAll('c-input,c-select,input,textarea');
+      else
+        elements = this.querySelectorAll('c-input');
+
+      elements.forEach(function(el){
+        if(el.getAttribute('type') == "radio")
+          el.checked = false
+        else if(el.constructor.name == 'CInput' || el.constructor.name == 'CSelect')
+          el.reset();
         el.value = "";
       });
 
@@ -688,6 +752,33 @@ class CSelect extends HTMLElement {
         this.shadowRoot.innerHTML = s_template;
         this._csel = this.shadowRoot.querySelector('select');
         this._callbacks = [];
+      }
+
+      static get observedAttributes() {
+        return ['disabled'];
+      }
+
+      get disabled() {
+        return this.hasAttribute('disabled');
+      }
+
+      set disabled(val) {
+
+        if (val) {
+          this._csel.disabled = true;
+        } else {
+          this._csel.disabled = false;
+        }
+      }
+
+      attributeChangedCallback(name, oldValue, newValue) {
+
+        if (this.disabled) {
+          this.disabled = true;
+        } else {
+          this.disabled = false;
+        }
+
       }
 
       /*  GET Y SET */
@@ -873,13 +964,14 @@ class CDatePicker extends HTMLElement {
             var(--cdate-label-color,#fff);
             padding: var(--cdate-label-padding,0);
             width:var(--cdate-label-width,125px); }
-      input[type="date"]{ background-color: white; height: 5vh;
-              outline:none; border:none; width: auto;}
+      input[type="date"]{ background-color: #e6ecf0; height: 5vh;
+              outline:none; border:none; width:var(--cdate-input-width,auto);
+            }
       input[type="date"]::-webkit-clear-button {
         padding:1px;
       }
       input[type="date"]::-webkit-inner-spin-button { visibility: hidden;}
-      input[type="date"]::-webkit-calendar-picker-indicator{font-size: 15px; color:black; background: white;}
+      input[type="date"]::-webkit-calendar-picker-indicator{font-size: 15px; color:black; background: #e6ecf0;}
       * { box-sizing: border-box; }
       </style>
       <label></label>
@@ -887,6 +979,32 @@ class CDatePicker extends HTMLElement {
       `;
       this._callbacks = [];
       this._cdate = this.shadowRoot.querySelector('input');
+    }
+
+    static get observedAttributes() {
+      return ['disabled'];
+    }
+
+    get disabled() {
+      return this.hasAttribute('disabled');
+    }
+
+    set disabled(val) {
+
+      if (val) {
+        this.shadowRoot.querySelector('input').disabled = true;
+      } else {
+        this.shadowRoot.querySelector('input').disabled = false;
+      }
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+
+      if (this.disabled) {
+        this.disabled = true;
+      } else {
+        this.disabled = false;
+      }
     }
 
     disconnectedCallback(){
@@ -959,7 +1077,7 @@ class CTag extends HTMLElement {
 
       label, button {
         color: white;
-        background-color: var(--ctag-bg-color,#58e98e);
+        background-color: var(--ctag-bg-color,#2481b9);
         height: var(--ctag-height,5vh);
         font-size: var(--ctag-font-size,2.5vh);
         display: block;

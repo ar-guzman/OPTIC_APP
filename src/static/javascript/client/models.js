@@ -56,7 +56,7 @@
             xhttp.send(body);
 
         }).catch(function (error) {
-            console.error(error);
+            alert('el tito');
         });
     }
 
@@ -621,6 +621,11 @@
             name: 'lentes',
           });
 
+          app.fixedData.laboratorios = new CustomCollection({
+            url:  data.laboratorio,
+            name: 'laboratorio'
+          });
+
           /*  colecciones de backbone */
           app.collections.Proveedor = BaseCollection.extend({
               model: app.models.Proveedor,
@@ -721,6 +726,8 @@
 
           app.urls = {};
           app.urls.ordenaro = data.ordenaro;
+          app.urls.ordenlente = data.ordenlente;
+          app.urls.ordenrepair = data.ordenrepair;
           app.urls.ordencompleta = data.ordencompleta;
 
         app.proveedor   = new app.collections.Proveedor();

@@ -33,9 +33,9 @@ from django.http import HttpResponse
 from reportlab.lib import colors
 from reportlab.platypus import TableStyle
 
+mid = PAGE_WIDTH/2
 
 def pdfreport(request, datos):
-    print(datos)
     logo = os.path.join(settings.BASE_DIR, 'static/images/icono.png')
     buffer = BytesIO()
     # Creación del objeto PDF, usando BytesIO como el archivo para optimizar
@@ -246,24 +246,72 @@ def some_view(request):
         return response
     return HttpResponse("Not found")
 
+def aro_pdf(datos):
+    logo = os.path.join(settings.BASE_DIR, 'static/images/icono.png')
+    buffer = BytesIO()
+    # Creación del objeto PDF, usando BytesIO como el archivo para optimizar
+    canv = canvas.Canvas(buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+
 def completa_pdf(datos):
     logo = os.path.join(settings.BASE_DIR, 'static/images/icono.png')
     buffer = BytesIO()
     # Creación del objeto PDF, usando BytesIO como el archivo para optimizar
-    p = canvas.Canvas(buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+    canv = canvas.Canvas(buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
     # Generación del pdf
     image = ImageReader(logo)
-    p.drawImage(image, 10, PAGE_HEIGHT - 80, 100, 75, mask='auto', preserveAspectRatio=True)
-    drawASC(p)
-    drawPAD(p)
-    drawLente(p)
-    drawAro(p)
-    writeHorizontalString(p, "C-{:06.0f}".format(datos['ordenID']),
-                          PAGE_WIDTH - 95, PAGE_HEIGHT - 20, font='Courier-Bold', size=16, color=[255, 0, 0])
-    p.roundRect(10, 10, PAGE_WIDTH - 20, 50, 2)
-    writeStaticString(p)
-    writeRefraction(p,datos)
-    p.save()
+    canv.drawImage(image, 10, PAGE_HEIGHT - 80, 100, 75, mask='auto', preserveAspectRatio=True)
+    drawASC(canv)
+    drawPAD(canv)
+    drawLente(canv)
+    drawAro(canv)
+    writeHorizontalString(canv, "C-{:06.0f}".format(datos['ordenID']),
+                          PAGE_WIDTH - 95, PAGE_HEIGHT - 20, font='WalkAway', size=18, color=[255, 0, 0])
+    # optica
+    writeHorizontalString(canv, datos['optica']['name'].upper(),
+                          int(PAGE_WIDTH / 2 - (len(datos['optica']['name']) / 2) * 16), PAGE_HEIGHT - 40,
+                          font='WalkAway', size=32, color=[5, 50, 4])
+    writeHorizontalStringList(canv,[datos['optica']['direction'],"{}".format(datos['optica']['contact_1']),
+                                    "/ {}".format(datos['optica']['contact_2'] if datos['optica']['contact_2'] is not None else ''),datos['optica']['email'],datos['optica']['redes']],
+                              x=[mid-60,mid+85,mid+130,mid-85,mid+80],
+                              y=[PAGE_HEIGHT-55,PAGE_HEIGHT-55,PAGE_HEIGHT-55,PAGE_HEIGHT-65,PAGE_HEIGHT-65],font="Helvetica",size=9)
+    # cliente
+    writeHorizontalStringList(canv, [datos['cliente']['firstname'], datos['cliente']['lastname']],
+                              x=[370 - len(datos['cliente']['firstname']) * 9, 370],
+                              y=[PAGE_HEIGHT / 2 - 20, PAGE_HEIGHT / 2 - 20], font='WalkAway-Bold', size=16,
+                              color=[5, 50, 4])
+    # abono
+    writeHorizontalStringList(canv, [datos['abono'], datos['saldo']],
+                              x=[325, 435],
+                              y=[PAGE_HEIGHT / 2 - 105, PAGE_HEIGHT / 2 - 105], font='WalkAway-Bold', size=12,
+                              color=[5, 50, 4])
+    # lente
+    writeHorizontalStringList(canv, [datos['lente']['tipo'], datos['lente']['material'], datos['lente']['color']],
+                              x=[50 - len(datos['lente']['tipo']) / 2 * 5, 50 - len(datos['lente']['material']) / 2 * 5,
+                                 125 - len(datos['lente']['color']) / 2 * 5],
+                              y=[PAGE_HEIGHT / 2 - 75, PAGE_HEIGHT / 2 - 90, PAGE_HEIGHT / 2 - 82.5],
+                              font='WalkAway-Bold', size=12,
+                              color=[5, 50, 4])
+    # filtros
+    writeHorizontalStringList(canv, datos['filtros'], x=[210 - len(filter) / 2 * 5 for filter in datos['filtros']],
+                              y=[PAGE_HEIGHT / 2 - (75 + index * 10) for index in range(len(datos['filtros']))],
+                              font='WalkAway-Bold', size=12,
+                              color=[5, 50, 4])
+    # aro
+    writeHorizontalStringList(canv, [datos['aro']['marca'], datos['aro']['modelo'], datos['aro']['color']],
+                              x=[295 - len(datos['aro']['marca']) / 2 * 5, 400 - len(datos['aro']['modelo']) / 2 * 5,
+                                 400 - len(datos['aro']['color']) / 2 * 5],
+                              y=[PAGE_HEIGHT / 2 - 70, PAGE_HEIGHT / 2 - 65, PAGE_HEIGHT / 2 - 75],
+                              font='WalkAway-Bold', size=10,
+                              color=[5, 50, 4])
+    # observaciones
+    writeParagraph("<font size=10 name='WalkAway-Bold'> {} / {} </font>".format(datos['observaciones'],
+                                                                                datos['ref']['observaciones']),
+                   styleSheet['BodyText'], canv, 15, 30, PAGE_WIDTH - 40)
+    canv.roundRect(10, 10, PAGE_WIDTH - 20, 50, 2)
+    writeStaticString(canv)
+    writeRefraction(canv, datos)
+    canv.setTitle("Orden Completa {}".format(datos['ordenID']))
+    canv.save()
     # Get the value of the BytesIO buffer and write it to the response.
     pdf = buffer.getvalue()
     buffer.close()
@@ -329,11 +377,10 @@ def drawAro(canvas):
 
 
 def writeStaticString(canvas):
-    mid = PAGE_WIDTH/2
     writeHorizontalStringList(canvas,str=['NOMBRE DEL PACIENTE:','OBSERVACIONES:','ABONO:','SALDO:'],
                               x=[255,15,255,375],y=[PAGE_HEIGHT / 2 + 5, 46,PAGE_HEIGHT / 2 - 110,PAGE_HEIGHT / 2 - 110],font = "Vera", size=14)
     writeHorizontalStringList(canvas,str=['DIRECCION:','PBX:','CORREO:','REDES:'],
-                              x=[mid-120,mid+60,mid-100,mid+40],y=[PAGE_HEIGHT-60,PAGE_HEIGHT-60,PAGE_HEIGHT-70,PAGE_HEIGHT-70],
+                              x=[mid-120,mid+60,mid-150,mid+10],y=[PAGE_HEIGHT-55,PAGE_HEIGHT-55,PAGE_HEIGHT-65,PAGE_HEIGHT-65],
                               font="Helvetica-Bold",size=9)
     asc = PAGE_HEIGHT / 2 + 83
     padd = PAGE_HEIGHT/2 - 47.5
@@ -360,15 +407,14 @@ def writeRefraction(canvas,datos):
                                            crv(datos['ref']['esfOSC']), crv(datos['ref']['cilOSC']), sphv(datos['ref']['ejeOSC']),
                                            crv(datos['ref']['esfODC']), crv(datos['ref']['cilODC']), sphv(datos['ref']['ejeODC'])],
                 x=[85,145,210,85,145,210,85,145,210,85,145,210],
-                y=[asc-25,asc-25,asc-25,asc-50,asc-50,asc-50,asc-75,asc-75,asc-75,asc-100,asc-100,asc-100],
-                font="Helvetica-Oblique",size=12)
+                y=[asc-25,asc-25,asc-25,asc-50,asc-50,asc-50,asc-75,asc-75,asc-75,asc-100,asc-100,asc-100],font="Helvetica-Oblique",size=12)
     writeHorizontalString(canvas, str="{}/{}".format(datos['ref']['distC'] if datos['ref']['distC'] != 0 else "-",datos['ref']['distL'] if datos['ref']['distL'] != 0 else "-"),
-                          x=440,y=asc-25,font="WalkAway-Bold",size=12)
+                          x=432.5,y=asc-25,font="WalkAway-Bold",size=12)
     writeHorizontalStringList(canvas,
                               str=["{}".format((datos['ref']['addOD']) if datos['ref']['addOD'] != '0.00' else "-"),
                                    "{}".format((datos['ref']['addOI']) if datos['ref']['addOD'] != '0.00' else "-")],
-                              x=[310,375],
-                              y=[asc - 50, asc - 50],
+                              x=[375,375],
+                              y=[asc - 25, asc - 50],
                               font="Helvetica-Oblique", size=10)
     prismaOD = datos['ref']['prismaOD'] if datos['ref']['tipoprismaOD'] != 0 else "-"
     bolprismaOD = True if datos['ref']['tipoprismaOD'] != 0 else False
@@ -386,20 +432,19 @@ def writeRefraction(canvas,datos):
         y.append(asc - 30)
     else:
         prismas.append(prismaOD)
-        x.append(305)
+        x.append(310)
         y.append(asc - 25)
     if bolprismaOS:
         prismas.append(prismaOS)
         prismas.append(basePrisma(datos['ref']['tipoprismaOS']))
-        x.append(375)
-        x.append(375)
-        y.append(asc - 20)
-        y.append(asc - 30)
+        x.append(305)
+        x.append(300)
+        y.append(asc - 45)
+        y.append(asc - 55)
     else:
-        print('acaOS')
         prismas.append(prismaOS)
-        x.append(375)
-        y.append(asc - 25)
+        x.append(310)
+        y.append(asc - 50)
     writeHorizontalStringList(canvas,
                               str=prismas,
                               x=x,

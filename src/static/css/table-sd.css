@@ -52,8 +52,7 @@ button.fa-search:hover,button.fa-search:focus {
 .table-header select{
     height:     inherit;
     padding:    0.5vh;
-    font-weight:  400;
-    margin:     0 1vh;
+    margin:   0 0.5vh;
 }
 
 .table-header label {
@@ -65,7 +64,7 @@ button.fa-search:hover,button.fa-search:focus {
     margin-bottom: 0;
 }
 
-.f-left, .f-right { width: 40%; display: inline-block; height: 5vh; margin-right: 3vw;}
+.f-left, .f-right { width: 35%; display: inline-block; height: 5vh; margin-right: 3vw;}
 .f-left{ margin-left:5%; }
 .f-right{ width: 30%; float:right; margin-right: 0; }
 .f-right::after{ content: ""; clear:both; }
@@ -117,8 +116,8 @@ th { font-size: 3vh; }
 td + td { border-left:2px solid #476b77;}
 
 .print-button-table, .button-cancel-table, .button-save-table, .edit-button-table, .delete-button-table{
-  width:4vh;
-  height:4vh;
+  width:5vh;
+  height:5vh;
   display:inline-block;
   font-size:2vh;
   text-align:center; border-radius:100%;
@@ -172,9 +171,10 @@ td input:focus{
   display: inline-block;
   font-weight: 600;
   border: 2px transparent solid;
-  outline: none;
+  color: beige;
   background: #5a7b88;
 }
+.table-footer div{vertical-align: top; display: flex;}
 
 .fa-backward{
   border-top-left-radius: 5px;
@@ -246,59 +246,56 @@ td input:focus{
 
 div.extra-filter {
   width: 100%;
-  display: block;
+  display: none;
   padding: .5vh 0;
 }
 
+div.extra-filter > div > *:first-child:nth-last-child(3),
+div.extra-filter > div > *:first-child:nth-last-child(3) ~ *{ width: calc(100% / 3);}
+div.extra-filter > div > *:first-child:nth-last-child(1),{width: 100%;}
+
+div.extra-filter > div > *:first-child:nth-last-child(2),
+div.extra-filter > div > *:first-child:nth-last-child(2) ~ *{width: calc(100% / 2);}
+
+div.extra-filter > div > *:first-child:nth-last-child(4),
+div.extra-filter > div > *:first-child:nth-last-child(4) ~ *{width: calc(100% / 4.25);}
+
 .extra-filter c-select{
   --selc-title-size: 2.5vh;
-  --selc-title-color:#fff;
+  --selc-title-color: #fff;
   --selc-title-display: inline-block;
   --selc-sel-width: auto;
-  --selc-title-width: 100px;
-  --selc-label-padding: 0 1vh;
-  margin-left: 5%;
+  --selc-label-position: relative;
   width: auto;
   display: inline-block;
 }
 
-.extra-filter c-select + c-select{
-  --selc-title-width: auto;
-  --selc-sel-width: auto;
-}
-
 .extra-filter c-select[name="status"],.extra-filter c-select[name="pagado"]{
   --selc-title-width: 81.5px;
-  margin-left: 2.5%;
 }
+
+.extra-filter > div {width: 80%; margin: auto; text-align:center;}
 
 .extra-filter c-datepicker {
   --cdate-font-size: 2.5vh;
-  margin-left: 2.5%;
+  --cdate-label-width:auto;
+  --cdate-input-width:auto;
+  display: inline-block;
 }
 
-.extra-filter c-datepicker:first-child{
-  margin-left: 5%;
-}
+.filters {width: 100%;}
+.filters select{width:90%;height:5vh; margin: 0.5vh auto; background: #e6ecf0;color: #021b2b;}
+.filters c-tag{ margin-left: 5%; display:inline-block;}
 
-c-datepicker[name="ini_date"]{
-  --cdate-label-padding: 0 0.5vh 0 1vh;
+#filter-control{
+  background: transparent;
+  color: white;
+  outline: none;
+  width: 10%;
+  border: none;
 }
+#filter-control:hover{ border: 1px solid white; box-shadow: 0 0 3px 3px #264846; }
 
-.filters {
-  width: 100%;
-}
-
-.filters select{
-  width:90%;
-  height:5vh;
-  margin: 0.5vh auto;
-}
-
-.filters c-tag{
-  margin-left: 5%;
-  display:inline-block;
-}
 
 .btn-table-orden, td select{
   height: 80%;

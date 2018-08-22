@@ -249,7 +249,7 @@
         }
     });
 
-    var ItemView      = FormView.extend({
+    var ItemView = FormView.extend({
         tagName : 'tr',
         events: {
             'click button.delete-button-table': 'deleted',
@@ -432,7 +432,7 @@
             return `<td><span>${tmp[0]} (${(fCol.data.get(tmp[1]))?
                       fCol.data.get(tmp[1]):
                       "-- ninguno --"})</span>
-                      <input name=${key} value=${val} read-only style="display:none"/>
+                      <input name="${key}" value="${val}" read-only style="display:none"/>
                       </td>`
           }
 
@@ -454,7 +454,7 @@
                     else if(this._foreignCollection.name == key)
                       return `<td><span>${(this._foreignCollection.data.get(val))?
                           this._foreignCollection.data.get(val):"-"}</span>
-                          <input name=${key} value=${val} read-only style="display:none"/>
+                          <input name="${key}" value="${val}" read-only style="display:none"/>
                           </td>`;
 
                   return  `<td>
@@ -471,6 +471,7 @@
     });
 
     var TableView     = TemplateView.extend({
+        className:'selected',
         initialize : function(options){
             /* General atributos, sin problema*/
             this._collection  = options.collection;
@@ -479,7 +480,7 @@
             this._subviews    = [];
             this._fields      = options.fields || null;
             this._collection.fetch();
-
+            if(options._populateTable) this._populateTable = options._populateTable;
             this.el.setAttr(this._percentages, this._header);
 
             this.el.collection = this._collection;
@@ -514,6 +515,8 @@
 
             /*  Listen para hacer el update */
             this.listenTo(this._collection,'update',function(){
+              this.el.createFooter();
+              this.el.renderFooter();
 
               if(this._foreignCollection){
                 this._foreignCollectionRequest.then(
@@ -521,12 +524,10 @@
                     this._reRenderTable();
                   }.bind(this)
                 );
-
                 return;
               }
               else
                 this._reRenderTable();
-
             }.bind(this));
         },
         constructor: function TableView() {
@@ -611,12 +612,17 @@
 
           cselect.eventCallback = [];
           cselect.eventCallback.push(fncallback);
-
           cselect._csel.addEventListener('change',fncallback);
-
           this.el.getFilters().appendChild(cselect);
-
-        }
+          this.el.createFilterControl();
+        },
+        destroy_view: function(){
+          this.el.classList.remove('selected');
+          this.el.classList.add('slide-transition');
+          setTimeout(()=>{
+            TemplateView.prototype.destroy_view.apply(this,arguments);
+          },500);
+        },
     });
 
     var GenericNewView = FormView.extend({
@@ -629,9 +635,9 @@
           let template      = document.querySelector(this.templateName);
           this.el.appendChild(template.content.cloneNode(true));
           this._collection  = options.collection;
-          this._wrapper     = document.querySelector(options.wrapper_el);
+          this._wrapper     = options.wrapper_el;
 
-          this.listenTo(this._collection,'add',function(model){
+          this.listenTo(this._collection,'saved',function(model){
             app.eventBus.trigger('message',
                             {title:model.constructor.name+': recién agregado.',
                             message:[(`Se ha agregado a:
@@ -643,9 +649,12 @@
                             extra:""}
                             );
           });
+          if(options.submit && _.isFunction(options.submit))
+            _.extend(this,{'submit':options.submit});
         },
         success: function (model) {
             this._cform.reset();
+            this._collection.trigger('saved');
         },
         render: function(){
           this._wrapper.appendChild(this.el);
@@ -662,6 +671,7 @@
 
     var GenericTemplateView = TemplateView.extend({
       initialize: function(options){
+
           this.subViews = [];
 
           this.subViews.push(new TableView({
@@ -674,14 +684,11 @@
           }));
 
           this.subViews[0].el._cform.submit = function(event){
-
               event.preventDefault();
-
-              let data = this.serializeForm();
-
+              let data = this.serializeForm(true);
               this._collection.fetch({
                 data: data
-              })
+              });
           }
       },
       render: function(){
@@ -690,7 +697,6 @@
               this.el.appendChild(view.el);
           },this);
 
-
       },
       destroy: function(){
 
@@ -698,7 +704,7 @@
               view.destroy_view();
           }, this);
 
-          TemplateView.prototype.cleanView.apply(this,arguments);
+          //TemplateView.prototype.cleanView.apply(this,arguments);
       }
     })
 
@@ -726,13 +732,17 @@
       },
       initialize: function(options){
         GenericNewView.prototype.initialize.apply(this,[options]);
+        this._csel = this.el.querySelector('c-select');
       },
       render: function(){
         let el = GenericNewView.prototype.render.apply(this,arguments);
+      },
+      setOptions: function(){
+
         app.fixedData.proveedores.fetch().then(function(){
             this._csel.options = app.fixedData.proveedores.data;
         }.bind(this));
-        this._csel = el.querySelector('c-select');
+
       },
     });
 
@@ -744,15 +754,17 @@
           );
       },
       render: function(){
-        let el = GenericNewView.prototype.render.apply(this,arguments);
+        GenericNewView.prototype.render.apply(this,arguments);
+        this._csel = this.el.querySelector('c-select');
+      },
+      setOptions: function(){
         Promise.all([app.fixedData.proveedores.fetch(),app.fixedData.marcas.fetch()])
         .then(
           function(){
             this._csel.multipleOptions =
                 [app.fixedData.marcas.data,app.fixedData.proveedores.data];
         }.bind(this));
-        this._csel = el.querySelector('c-select');
-      }
+      },
     });
 
     var NewOpticaView = GenericNewView.extend({
@@ -760,6 +772,42 @@
       constructor: function NewOpticaView() {
           NewOpticaView.__super__.constructor.apply(this, arguments);
       },
+      render: function(){
+        GenericNewView.prototype.render.apply(this,null);
+        this.el.setAttribute('style',"overflow:auto; height:100%;");
+      },
+      submit: function(event){
+
+        event.preventDefault();
+
+        if(!this._cform.validate()) return;
+
+        let data = this._cform.serializeForm(),
+            form_data = new FormData(),
+            self = this;
+
+        for ( let key in data )
+          form_data.append(key, data[key]);
+
+        $.ajax({
+          url: this._collection.url,
+          data: form_data,
+          cache: false,
+          contentType: false,
+          processData: false,
+          type: 'POST',
+          success: function(data){
+            optica = data.name
+            self._cform.reset();
+            app.eventBus.trigger('message',
+            {title:'Se ha agregado una nueva sucursal...',
+            message:[`Se ha agregado la sucursal: ${optica}
+            `],
+            extra:""}
+            );
+          }
+        });
+      }
     });
 
     var NewInventarioDetailView = GenericNewView.extend({
@@ -771,7 +819,7 @@
         let template      = document.querySelector(this.templateName);
         this.el.appendChild(template.content.cloneNode(true));
         this._collection  = options.collection;
-        this._wrapper     = document.querySelector(options.wrapper_el);
+        this._wrapper     = options.wrapper_el;
 
         this.listenTo(this._collection,'add',function(model){
           app.eventBus.trigger('message',
@@ -809,6 +857,30 @@
 
         });
 
+      },
+      destroy: function(){
+        this.el.querySelector('c-select[name="marca"]')
+                  .removeEventListener('change',this._aroChange);
+        GenericNewView.prototype.destroy.apply(this,arguments);
+      },
+      submit: function (event) {
+          event.preventDefault();
+
+          if(!this._cform.validate()) return;
+
+          let data = this._cform.serializeForm();
+          delete data["marca"];
+
+          this._collection.create(data,
+              {wait:true, validate:true,
+              success: this.success.bind(this),
+              error: this.error.bind(this),
+            });
+      },
+      setOptions:function(){
+
+        let cselectors = this.el.querySelectorAll('c-select');
+
         Promise.all([app.fixedData.marcas.fetch(),app.fixedData.opticas.fetch()])
         .then(
           function(data){
@@ -832,27 +904,7 @@
         ).catch(
           (error)=>console.log(error)
         )
-
-      },
-      destroy: function(){
-        this.el.querySelector('c-select[name="marca"]')
-                  .removeEventListener('change',this._aroChange);
-        GenericNewView.prototype.destroy.apply(this,arguments);
-      },
-      submit: function (event) {
-          event.preventDefault();
-
-          if(!this._cform.validate()) return;
-
-          let data = this._cform.serializeForm();
-          delete data["marca"];
-
-          this._collection.create(data,
-              {wait:true, validate:true,
-              success: this.success.bind(this),
-              error: this.error.bind(this),
-            });
-      },
+      }
     });
 
     var NewEmpleadoView = GenericNewView.extend({
@@ -863,7 +915,7 @@
       render: function(){
         let el = GenericNewView.prototype.render.apply(this,arguments);
 
-        el.setAttribute('style',"overflow:auto; height:100%;")
+        el.setAttribute('style',"overflow:auto; height:100%;");
 
         app.fixedData.opticas.fetch().then(function(){
             this._csel.options = app.fixedData.opticas.data;
@@ -880,10 +932,6 @@
 
         return el;
 
-      },
-      destroy: function(){
-        this.el.removeAttribute('style');
-        GenericNewView.prototype.destroy.apply(this,null);
       },
       submit: function(event){
 
@@ -929,9 +977,12 @@
             `],
             extra:""}
             );
+          },
+          /* REVISAR ESTO */
+          error: function(data){
+            self.error(data);
           }
         });
-
       }
     });
 
@@ -1000,7 +1051,6 @@
           let tags = this.el.querySelectorAll('div.filtros > c-tag');
 
           tags.forEach(function(item){ filtros.push(item.value); });
-
 
           data['filtro'] = filtros;
 
@@ -1097,18 +1147,18 @@
                   return `<td>${val}</td>`;
 
                 if(key == this._foreignCollection[0].name)
-                  return  (!val)?`<td><span>-</span><input name=${key}
+                  return  (!val)?`<td><span>-</span><input name="${key}"
                           value = null read-only style="display:none/></td>`:
                           `<td><span>${this._foreignCollection[0].data.get(val)}
-                          </span><input name=${key}
-                          value = ${val} read-only style="display:none/></td>`
+                          </span><input name="${key}"
+                          value="${val}" read-only style="display:none/></td>`
 
                 if(key == this._foreignCollection[1].name)
-                  return  (!val)?`<td><span>-</span><input name=${key}
+                  return  (!val)?`<td><span>-</span><input name="${key}"
                           value = null read-only style="display:none/></td>`:
                           `<td><span>${this._foreignCollection[1].data.get(val)}</span>
-                          <input name=${key}
-                          value = ${val} read-only style="display:none/></td>`
+                          <input name="${key}"
+                          value="${val}" read-only style="display:none/></td>`
 
                 if(key == 'ventas' || key=='fecha')
                   return  `<td>
@@ -1131,6 +1181,7 @@
     });
 
     var IndependentTableView = TableView.extend({
+      className:'selected',
       initialize: function(options){
         this._collection = options.collection;
         this._percentages = options.percentages || [];
@@ -1161,8 +1212,12 @@
         }.bind(this))
 
 
-        /*  Listen para hacer el update */
+        /*  Listen para hacer el update
+            CREO QUE NO ES NECESARIO
+        */
         this.listenToOnce(this._collection,'reset',function(){
+          this.el.createFooter();
+          this.el.renderFooter();
           this._foreignCollectionRequest.then(
             function(){
               this._reRenderTable();
@@ -1171,6 +1226,8 @@
         }.bind(this));
 
         this.listenTo(this._collection,'update',function(){
+          this.el.createFooter();
+          this.el.renderFooter();
           this._foreignCollectionRequest.then(
             function(){
               this._reRenderTable();
@@ -1206,6 +1263,7 @@
           cselect._csel.addEventListener('change',fncallback);
 
           this.el.getFilters().appendChild(cselect);
+          this.el.createFilterControl();
 
         },this);
 
@@ -1309,11 +1367,11 @@
         }));
 
         this.subViews[0].el._cform.submit = function(event){
-            event.preventDefault();
-            let data = this.serializeForm();
-            app.inventario.fetch({
-              data: data
-            })
+          event.preventDefault();
+          let data = this.serializeForm();
+          app.inventario.fetch({
+            data: data
+          })
         }
       },
       render: function(){
@@ -1328,7 +1386,7 @@
               view.destroy_view();
           }, this);
 
-          TemplateView.prototype.cleanView.apply(this,arguments);
+          //TemplateView.prototype.cleanView.apply(this,arguments);
       }
     })
 
@@ -1433,373 +1491,668 @@
         }
     });
 
-    var InventarioView = TemplateView.extend({
-        className: 'menu-bar btn-options',
-        templateName: '#inventario-template',
-        initialize: function(options){
-            /*
-            *   this.modal = new ModalView();
-            */
-            this._modal   = new ModalView();
-            this._current = null;
-            this._parentNode = options.contentElement;
-            this._contentElement  = 'div.section';
-            this.el.appendChild(document.getElementById('inventario-template').content.cloneNode(true));
-        },
-        events: {
-            'click #prov-gestion':'proveedor',
-            'click #new-proveedor':'nuevoProveedor',
-            'click #marca-gestion':'marca',
-            'click #new-marca':'nuevoMarca',
-            'click #new-aro':'nuevoAro',
-            'click #aro-gestion':'aro',
-            'click #sucursal':'sucursal',
-            'click #new-sucursal':'nuevoSucursal',
-            'click #new-inv-sucursal':'nuevoInvOptica',
-            'click #inv-sucursal':'inventario',
-            'click #laboratorio-gestion':'laboratorio',
-            'click #new-laboratorio':'nuevoLaboratorio',
-            'click #tipolente-gestion':'tipolente',
-            'click #new-tipolente':'nuevoTipolente',
-            'click #filtro-gestion':'filtro',
-            'click #new-filtro':'nuevoFiltro',
-            'click #new-empleado':'nuevoEmpleado',
-        },
-        laboratorio: function(){
-          let view = new LaboratorioView({
-            el: this._contentElement,
-            collection:app.laboratorio,
-            header:['Nombre','Dirección','Teléfono','Teléfono','',''],
-            percentages:[20,40,15,15,5,5],
-          });
-          this.renderView(view);
-        },
-        proveedor: function(){
-          let view = new ProveedorView({
-            el: this._contentElement,
-            collection:app.proveedor,
-            header:['Nombre','Dirección','Teléfono','Teléfono','',''],
-            percentages:[20,40,15,15,5,5],
-          });
-          this.renderView(view);
-        },
-        marca: function(){
-
-          let view = new MarcaView({
-            el:this._contentElement,
-            collection:app.marca,
-            header:['Nombre','Descripción','Proveedor','',''],
-            percentages:[20,50,20,5,5],
-            foreignCollection: app.fixedData.proveedores,
-          });
-
-          this.renderView(view);
-        },
-        aro: function(){
-
-          let view = new AroView({
-            el:this._contentElement,
-            collection:app.aro,
-            header:['Modelo','Color','Marca','',''],
-            percentages:[20,40,30,5,5],
-            foreignCollection: [app.fixedData.marcas,app.fixedData.proveedores],
-            fields: ['modelo','color']
-          });
-
-          this.renderView(view);
-
-        },
-        inventario: function(){
-
-          let view = new InventarioDetailView({
-            el:this._contentElement,
-            collection:app.inventario,
-          });
-
-          this.renderView(view);
-
-        },
-        tipolente: function(){
-
-          let LenteItemView = ItemView.extend({
-            renderViewMode: function(){
-
-              this.el.removeAttribute('style');
-
-              $(this.el).html(
-                _.map(this.data,
-                function(val, key){
-                  if(key == "id" || key == "uri" || key == "btn-save"
-                      || key == "btn-cancel")
-                    return;
-
-                  if(this._foreignCollection.name == key)
-                    return `<td>[${
-                          val.map(function(valor){
-                            return (this._foreignCollection.data.get(valor))?
-                              this._foreignCollection.data.get(valor):"-";
-                          },this).join(' , ')}]
-                          </td>`;
-
-                  return `<td>${(!val)?"-":val}</td>`
-
-                },
-                  this
-                )
-              );
-
-              return this;
-            },
-            renderEditMode: function(){
-
-              this.el.setAttribute('style','height:12vh;');
-              $(this.el).html(
-                _.map(
-                    this.data,
-                    function(val, key){
-                      if(key == "id" || key == "uri" || key == 'btn-edit'
-                          || key == 'btn-del') return;
-
-                      if(key == "btn-save" || key == "btn-cancel")
-                        return `<td>${val}</td>`;
-
-                      if(this._foreignCollection.name == key)
-                          return `<td>
-                              <div class="filters">
-                              <select>
-                              ${Array.from(this._foreignCollection.data).map(
-                                function(value,key){
-                                  return `<option value='${key}'>${value[1]}</option>`
-                                }
-                              ).join('')}
-                              </select>
-                              ${val.map(
-                                function(value){
-                                  return `<c-tag
-                                  titulo = '${this._foreignCollection.data.get(value)}'
-                                  name   = 'filters' value  = '${value}'></c-tag>`
-                                },this).join(' ')}
-                              </div>
-                              </td>`;
-
-                      return  `<td>
-                              <span></span>
-                              <input name="${key}"
-                                value ="${((val==null)?"":val)}">
-                               </td>`;
-
-                     }, this
-                  )
-                ); //fin del map a html
-
-              let div = this.el.querySelector('div.filters');
-
-              this._fnCallback = function(){
-
-                if(this.value == 0) return;
-
-                let oldTag = false;
-
-                div.childNodes.forEach(
-                          (item)=>{ if(item.value == this.value && item !== this)
-                              oldTag = true;
-                          }, this);
-
-                if(oldTag){ this.selectedIndex = 0; return; }
-
-                let ctag = createElementWProperties('c-tag',{
-                  title : this.options[this.selectedIndex].text,
-                  name  : 'filters',
-                  value : this.value || this.options[this.options.selectedIndex].value,
-                });
-
-                div.appendChild(ctag);
-
-                this.selectedIndex = 0;
-
-              }
-
-              this.el.querySelector('select').addEventListener('change',this._fnCallback);
-
-
-            },//fin método renderEditMode
-            cancel:function(){
-              if(this._fnCallback){
-                this.el.querySelector('select').removeEventListener('change',this._fnCallback);
-                this._fnCallback = null;
-              }
-              ItemView.prototype.cancel.apply(this,arguments);
-            },
-            destroy_view: function(){
-
-              if(this._fnCallback){
-                this.el.querySelector('select').removeEventListener('change',this._fnCallback);
-              }
-
-              TemplateView.prototype.destroy_view.apply(this,arguments);
-
-            },
-            save: function(event){
-              this.clearErrors();
-              let attributes = {};
-              /*  Debemos serializar todos los inputs */
-              attributes = _.object(_.map(
-                    $(event.currentTarget.parentNode.parentNode).find('input'),
-                    function (item) {
-                        return [item.name,item.value];
-                      }
-                    ));
-
-              let ctags = this.el.querySelector('div.filters').querySelectorAll('c-tag'),
-                  filters = [];
-
-              ctags.forEach((item)=>{ filters.push(item.value);})
-
-              attributes['filtro'] = filters;
-
-              this.model.save(attributes, {
-                  wait:     true,
-                  success:  this.success.bind(this),
-                  error :   this.error.bind(this)
-              });
-            },
-          });
-
-          let view = new LenteView({
-            el:this._contentElement,
-            collection:app.lente,
-            header:['Material','Tipo','Color','Filtros','',''],
-            percentages:[20,20,20,30,5,5],
-            foreignCollection: app.fixedData.filtros,
-            itemView: LenteItemView,
-            fields: ['material','color','tipo']
-          });
-
-          this.renderView(view);
-        },
-        nuevoTipolente: function(){
-
-          let view = new NewLenteView({
-            wrapper_el:this._contentElement,
-            collection:app.lente,
-            fields:['color','tipo','material'],
-          })
-
-          this.renderView(view);
-
-        },
-        nuevoProveedor: function(){
-          let view = new NewProveedorView({
-                                            wrapper_el:this._contentElement,
-                                            collection:app.proveedor,
-                                          });
-          this.renderView(view);
-        },
-        nuevoEmpleado:function(){
-          let view = new NewEmpleadoView({
-                                            wrapper_el:this._contentElement,
-                                            collection:app.empleado,
-                                          });
-          this.renderView(view);
-        },
-        nuevoMarca: function(){
-          let view = new NewMarcaView({
-                                        wrapper_el:this._contentElement,
-                                        collection:app.marca,
-                                      });
-          this.renderView(view);
-        },
-        nuevoAro: function(){
-
-          let view = new NewAroView({
-            wrapper_el:this._contentElement,
-            collection:app.aro,
-            fields: ['modelo','color'],
-          });
-
-          this.renderView(view);
-
-        },
-        nuevoLaboratorio: function(event){
-
-          let view = new NewLaboratorioView({
-            wrapper_el:this._contentElement,
-            collection:app.laboratorio,
-          });
-
-          this.renderView(view);
-
-        },
-        sucursal: function(event){
-
-          let view = new OpticaView({
-            el:this._contentElement,
-            collection:app.optica,
-          });
-
-          this.renderView(view);
-
-        },
-        nuevoSucursal: function(event){
-
-          let view = new NewOpticaView({
-            wrapper_el:this._contentElement,
-            collection:app.optica,
-          });
-
-          this.renderView(view);
-
-        },
-        nuevoInvOptica:function(event){
-
-          let view = new NewInventarioDetailView({
-            wrapper_el:this._contentElement,
-            collection:app.inventario,
-          });
-
-          this.renderView(view);
-
-        },
-        filtro: function(event){
-
-          let view = new GenericTemplateView({
-            el:this._contentElement,
-            collection:app.filtro,
-            header:['Filtro','Descripción','',''],
-            percentages:[40,50,5,5],
-            fields: ['filtro']
-          });
-
-          this.renderView(view);
-        },
-        nuevoFiltro: function(event){
-          let view = new NewFiltroView({
-            wrapper_el:this._contentElement,
-            collection:app.filtro,
-            fields:['filtro']
-          });
-
-          this.renderView(view);
-        },
-        renderView: function( view ){
-            if(this.current){
-                this.current.destroy();
-            }
+    var GenericManagerView = TemplateView.extend({
+      _gridTemplate: _.template(`<div class="native-grid">
+          <div class="sub-item-grid">
+            <div class="grid-box-info">
+              <span class="fas fa-hand-point-left"></span>
+              <h1><center> <%= data.titulos[0] %></center></h1>
+              <p>Paso 1: <%= data.parrafos[0] %></p>
+              <button id="<%= data.ids[0] %>" class="rounded-btn" value="1">1</button>
+              <div class="grid-box-inner">
+                  <button class="rounded-btn" name="return"><span class="fas fa-chevron-circle-left" name="return-btn"></span></button>
+                  <p>Ir a otro paso</p>
+              </div>
+            </div>
+          </div>
+          <div class="sub-item-grid">
+            <div class="grid-box-info">
+              <span class="fas fa-hand-point-left"></span>
+              <h1><center><%= data.titulos[1] %></center></h1>
+              <p>Paso 2: <%= data.parrafos[1] %></p>
+              <button id="<%= data.ids[1] %>" class="rounded-btn" value="2">2</button>
+              <div class="grid-box-inner">
+                  <button class="rounded-btn" name="return"><span class="fas fa-chevron-circle-left" name="return-btn"></span></button>
+                  <p>Ir a otro paso</p>
+              </div>
+            </div>
+          </div>
+          <div class="sub-item-grid">
+            <div class="grid-box-info">
+            <span class="fas fa-hand-point-left"></span>
+              <h1><center><%= data.titulos[2] %></center></h1>
+              <p>Paso 3: <%= data.parrafos[2] %></p>
+              <button id="<%= data.ids[2] %>" class="rounded-btn" value="3">3</button>
+              <div class="grid-box-inner">
+                  <button class="rounded-btn" name="return"><span class="fas fa-chevron-circle-left" name="return-btn"></span></button>
+                  <p>Ir a otro paso</p>
+              </div>
+            </div>
+          </div>
+          <div class="sub-item-grid">
+            <div class="grid-box-info">
+              <span class="fas fa-hand-point-left"></span>
+              <h1><center><%= data.titulos[3] %></center></h1>
+              <p>Paso 4: <%= data.parrafos[3] %></p>
+              <button id="<%= data.ids[3] %>" class="rounded-btn" value="4">4</button>
+              <div class="grid-box-inner">
+                  <button class="rounded-btn" name="return"><span class="fas fa-chevron-circle-left" name="return-btn"></span></button>
+                  <p>Ir a otro paso</p>
+              </div>
+            </div>
+          </div>
+        </div>`),
+      renderView: function( view ){
+          if(this.current){
+            this.current.destroy();
+          }
+          setTimeout(()=>{
             this.current = view;
             this.current.render();
-        },
-        destroy_view: function(){
-            this._modal.destroy_view();
-            this._parentNode.removeChild(this._wrapper);
-            this._wrapper = null;
-            TemplateView.prototype.destroy_view.apply(this,arguments);
-        },
-        render:function() {
-          this._parentNode.appendChild(this.el);
+          },550);
+      },
+      destroy_view: function(){
+          this._modal.destroy_view();
+          this._wrapper.remove();
+          this._wrapper = null;
+          TemplateView.prototype.destroy_view.apply(this,arguments);
+      },
+      render:function() {
+        this._parentNode.appendChild(this.el);
+      },
+      enableDisableForms: function(render = false,enable = false){
+        if(!enable)
+          this._gridItems.forEach(item=>{item.disabled = true; render && item.render();},this);
+        else
+          this._gridItems.forEach(item=>{item.disabled = false; render && item.render();},this);
+      },
+      cleanNewInvSteps:function(){
+        this._gridItems.forEach(item=>item.destroy_view());
+        delete this._gridItems;
+        delete this._gridItemsContainer;
+        while(this._wrapper.firstChild) this._wrapper.firstChild.remove();
+      },
+      showSelectedForm: function(event){
+
+        let val = event.currentTarget.getAttribute('value');
+
+        this._gridItems[val-1].disabled = false;
+
+        this._gridItemsContainer[val-1].parentNode.classList.add('slide-transition');
+        setTimeout(()=>{
+          this._gridItemsContainer[val-1].parentNode.classList.remove('slide-transition');
+          this._gridItemsContainer[val-1].parentNode.classList.add('individual');
+          this._gridItemsContainer[val-1].classList.add('selected');
+        },500)
+
+        this._selectedItemIndex = val-1;
+        this._gridItems[val-1].disabled = false;
+      },
+      returnToSteps: function(event){
+
+        if(this._selectedItemIndex < 0 || this._selectedItemIndex > this._max) return;
+
+        this._gridItems[this._selectedItemIndex].disabled = true;
+        this._gridItems[this._selectedItemIndex].reset(true);
+        this._gridItemsContainer[this._selectedItemIndex].classList.add('slide-transition');
+        this._gridItemsContainer[this._selectedItemIndex].classList.remove('selected');
+        setTimeout(()=>{
+          this._gridItemsContainer[this._selectedItemIndex].classList.remove('slide-transition');
+          this._gridItemsContainer[this._selectedItemIndex].parentNode.classList.add('selected');
+          this._gridItemsContainer[this._selectedItemIndex].parentNode.classList.remove('individual');
+        },500);
+
+        setTimeout(()=>{
+          this._gridItemsContainer[this._selectedItemIndex].parentNode.classList.remove('selected');
+          delete this._selectedItemIndex;
+        },1000);
+
+      },
+    })
+
+    var InventarioView = GenericManagerView.extend({
+      tagName: 'div',
+      templateName: '#inventario-template',
+      initialize: function(options){
+          /*
+          *   this.modal = new ModalView();
+          */
+          this._modal   = new ModalView();
+          this._current = null;
+          this._parentNode = options.contentElement;
+          this._contentElement  = 'div.section';
+          let div = document.createElement('div');
+          div.setAttribute('class','menu-bar btn-options');
+          div.appendChild(document.getElementById('inventario-template').content.cloneNode(true));
+          this.el.appendChild(div);
           this._wrapper = document.createElement('div');
           this._wrapper.setAttribute('class','section');
-          this._parentNode.appendChild(this._wrapper);
-        },
+          this.el.appendChild(this._wrapper);
+      },
+      events: {
+          'click #gest-proveedor':'proveedor',
+          'click #gest-marca':'marca',
+          'click #new-lote-full':'renderNewInvSteps',
+          'click #gest-aro':'aro',
+          'click #gest-lote':'inventario',
+          'click #new-lote-btn':'showSelectedForm',
+          'click #new-prov-btn':'showSelectedForm',
+          'click #new-marca-btn':'showSelectedForm',
+          'click #new-aro-btn':'showSelectedForm',
+          'click button[name="return"]':'returnToSteps',
+      },
+      showSelectedForm: function(event){
+
+        let val = event.currentTarget.getAttribute('value');
+        if(val-1 > 0)
+          this._gridItems[val-1].setOptions();
+
+        GenericManagerView.prototype.showSelectedForm.apply(this,arguments);
+      },
+      proveedor: function(){
+
+        let view = new ProveedorView({
+          el: this._contentElement,
+          collection:app.proveedor,
+          header:['Nombre','Dirección','Teléfono','Teléfono','',''],
+          percentages:[20,40,15,15,5,5],
+        });
+
+        this.renderView(view);
+      },
+      marca: function(){
+
+        let view = new MarcaView({
+          el:this._contentElement,
+          collection:app.marca,
+          header:['Nombre','Descripción','Proveedor','',''],
+          percentages:[20,50,20,5,5],
+          foreignCollection: app.fixedData.proveedores,
+        });
+
+        this.renderView(view);
+      },
+      aro: function(){
+
+        let view = new AroView({
+          el:this._contentElement,
+          collection:app.aro,
+          header:['Modelo','Color','Marca','',''],
+          percentages:[20,40,30,5,5],
+          foreignCollection: [app.fixedData.marcas,app.fixedData.proveedores],
+          fields: ['modelo','color']
+        });
+
+        this.renderView(view);
+
+      },
+      inventario: function(){
+
+        let view = new InventarioDetailView({
+          el:this._contentElement,
+          collection:app.inventario,
+        });
+
+        this.renderView(view);
+
+      },
+      nuevoProveedor: function(){
+        let view = new NewProveedorView({
+                                          wrapper_el:this._gridItems[0],
+                                          collection:app.proveedor,
+                                        });
+        this.renderView(view);
+      },
+      nuevoMarca: function(){
+        let view = new NewMarcaView({
+                                      wrapper_el:this._contentElement,
+                                      collection:app.marca,
+                                    });
+        this.renderView(view);
+      },
+      nuevoAro: function(){
+
+        let view = new NewAroView({
+          wrapper_el:this._contentElement,
+          collection:app.aro,
+          fields: ['modelo','color'],
+        });
+
+        this.renderView(view);
+
+      },
+      nuevoInvOptica:function(event){
+
+        let view = new NewInventarioDetailView({
+          wrapper_el:this._contentElement,
+          collection:app.inventario,
+        });
+
+        this.renderView(view);
+
+      },
+      renderNewInvSteps: function(){
+        if(this._stepsRendered) return;
+        this._wrapper.innerHTML = this._gridTemplate({data:{
+          titulos: ['Nuevo Proveedor','Nueva Marca','Nuevo Aro','Nuevo Lote'],
+          ids: ['new-prov-btn','new-marca-btn','new-aro-btn','new-lote-btn'],
+          parrafos: ['Antes de ingresar cualquier registro debe registrar la información del proveedor.',
+                    'Seleccione para registrar una nueva marca, previo a esto el proveedor ya debe estar registrado.',
+                    'Seleccione para registrar un nuevo modelo de aro. Previo a esto el proveedor y la marca ya deben existir.',
+                    'Si el proveedor, marca y tipo de aro a ingresar ya se encuentran ingresados y sólo quiere agregar una nueva entrada, seleccione esta opción.']
+          }
+        });
+        this.el.appendChild(this._wrapper);
+        this._gridItemsContainer = this._parentNode.querySelectorAll('div.sub-item-grid');
+        /*
+        * 0 NewProveedorView
+        * 1 NewMarcaView
+        * 2 NewAroView
+        * 3 NewInventarioDetailView
+        */
+        this._gridItems = new Array(4)
+        this._max = 3;
+        this._gridItems[0] = new NewProveedorView({wrapper_el:this._gridItemsContainer[0],
+                                          collection:app.proveedor,});
+        this._gridItems[1] = new NewMarcaView({wrapper_el:this._gridItemsContainer[1],
+                                              collection:app.marca,});
+        this._gridItems[2] = new NewAroView({wrapper_el:this._gridItemsContainer[2],
+                                      collection:app.aro,
+                                      fields: ['modelo','color'],});
+        this._gridItems[3] = new NewInventarioDetailView({wrapper_el:this._gridItemsContainer[3],
+                                    collection:app.inventario,});
+
+        this.enableDisableForms(true);
+        this._stepsRendered = true;
+      },
+    });
+
+    var LentesAllView = GenericManagerView.extend({
+      events: {
+          'click #gest-proveedor':'proveedor',
+          'click #gest-marca':'marca',
+          'click #new-lente-full':'renderNewLenteSteps',
+          'click #gest-lente':'tipolente',
+          'click #gest-filtros':'filtro',
+          'click #gest-laboratorios':'laboratorio',
+          'click #new-lente-btn':'showSelectedForm',
+          'click #new-lab-btn':'showSelectedForm',
+          'click #new-filter-btn':'showSelectedForm',
+          'click #new-aro-btn':'showSelectedForm',
+          'click button[name="return"]':'returnToSteps',
+      },
+      initialize: function(options){
+        this._modal   = new ModalView();
+        this._current = null;
+        this._parentNode = options.contentElement;
+        this._contentElement  = 'div.section';
+        let div = document.createElement('div');
+        div.setAttribute('class','menu-bar btn-options');
+        div.innerHTML = `<ul class="top-lvl-dd">
+          <li>
+            <a><label>Subir lente</label></a>
+            <ul class="first-lvl-dd">
+              <li>
+                <button id="new-lente-full">Subir lente</button>
+              </li>
+              <li>
+                <button id="new-lab">Nuevo laboratorio</button>
+              </li>
+              <li>
+                <button id="new-lente">Nuevo lente</button>
+              </li>
+              <li>
+                <button id="new-filter">Nuevo filtro</button>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a><label>Gestionar info. lentes</label></a>
+            <ul class="first-lvl-dd">
+              <li>
+                <button id="gest-lente">Gestionar lentes</button>
+              </li>
+              <li>
+                <button id="gest-laboratorios">Gestionar laboratorios</button>
+              </li>
+              <li>
+                <button id="gest-filtros">Gestionar filtros</button>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a><label>Imprimir info. lentes</label></a>
+            <ul class="first-lvl-dd">
+              <li>
+                <button id="print-lentes">Imprimir lentes</button>
+              </li>
+              <li>
+                <button id="print-algo">Imprimir</button>
+              </li>
+            </ul>
+          </li>
+        </ul>`;
+        this.el.appendChild(div);
+        this._wrapper = document.createElement('div');
+        this._wrapper.setAttribute('class','section');
+        this.el.appendChild(this._wrapper);
+      },
+      nuevoLaboratorio: function(event){
+
+        let view = new NewLaboratorioView({
+          wrapper_el:this._contentElement,
+          collection:app.laboratorio,
+        });
+
+        this.renderView(view);
+
+      },
+      laboratorio: function(){
+        let view = new LaboratorioView({
+          el: this._contentElement,
+          collection:app.laboratorio,
+          header:['Nombre','Dirección','Teléfono','Teléfono','',''],
+          percentages:[20,40,15,15,5,5],
+        });
+        this.renderView(view);
+      },
+      nuevoTipolente: function(){
+
+        let view = new NewLenteView({
+          wrapper_el:this._contentElement,
+          collection:app.lente,
+          fields:['color','tipo','material'],
+        })
+
+        this.renderView(view);
+
+      },
+      filtro: function(event){
+
+        let view = new GenericTemplateView({
+          el:this._contentElement,
+          collection:app.filtro,
+          header:['Filtro','Descripción','',''],
+          percentages:[40,50,5,5],
+          fields: ['filtro']
+        });
+
+        this.renderView(view);
+      },
+      nuevoLaboratorio: function(event){
+
+        let view = new NewLaboratorioView({
+          wrapper_el:this._contentElement,
+          collection:app.laboratorio,
+        });
+
+        this.renderView(view);
+
+      },
+      nuevoFiltro: function(event){
+        let view = new NewFiltroView({
+          wrapper_el:this._contentElement,
+          collection:app.filtro,
+          fields:['filtro']
+        });
+
+        this.renderView(view);
+      },
+      tipolente: function(){
+
+        let LenteItemView = ItemView.extend({
+          renderViewMode: function(){
+
+            this.el.removeAttribute('style');
+
+            $(this.el).html(
+              _.map(this.data,
+              function(val, key){
+                if(key == "id" || key == "uri" || key == "btn-save"
+                    || key == "btn-cancel")
+                  return;
+
+                if(this._foreignCollection.name == key)
+                  return `<td>[${
+                        val.map(function(valor){
+                          return (this._foreignCollection.data.get(valor))?
+                            this._foreignCollection.data.get(valor):"-";
+                        },this).join(' , ')}]
+                        </td>`;
+
+                return `<td>${(!val)?"-":val}</td>`
+
+              },this));
+
+            return this;
+          },
+          renderEditMode: function(){
+
+            this.el.setAttribute('style','height:12vh;');
+            $(this.el).html(
+              _.map(
+                  this.data,
+                  function(val, key){
+                    if(key == "id" || key == "uri" || key == 'btn-edit'
+                        || key == 'btn-del') return;
+
+                    if(key == "btn-save" || key == "btn-cancel")
+                      return `<td>${val}</td>`;
+
+                    if(this._foreignCollection.name == key)
+                        return `<td>
+                            <div class="filters">
+                            <select>
+                            ${Array.from(this._foreignCollection.data).map(
+                              function(value,key){
+                                return `<option value='${key}'>${value[1]}</option>`
+                              }
+                            ).join('')}
+                            </select>
+                            ${val.map(
+                              function(value){
+                                return `<c-tag
+                                titulo = '${this._foreignCollection.data.get(value)}'
+                                name   = 'filters' value  = '${value}'></c-tag>`
+                              },this).join(' ')}
+                            </div>
+                            </td>`;
+
+                    return  `<td>
+                            <span></span>
+                            <input name="${key}"
+                              value ="${((val==null)?"":val)}">
+                             </td>`;
+
+                   }, this
+                )
+              ); //fin del map a html
+
+            let div = this.el.querySelector('div.filters');
+
+            this._fnCallback = function(){
+
+              if(this.value == 0) return;
+
+              let oldTag = false;
+
+              div.childNodes.forEach(
+                        (item)=>{ if(item.value == this.value && item !== this)
+                            oldTag = true;
+                        }, this);
+
+              if(oldTag){ this.selectedIndex = 0; return; }
+
+              let ctag = createElementWProperties('c-tag',{
+                title : this.options[this.selectedIndex].text,
+                name  : 'filters',
+                value : this.value || this.options[this.options.selectedIndex].value,
+              });
+
+              div.appendChild(ctag);
+
+              this.selectedIndex = 0;
+
+            }
+
+            this.el.querySelector('select').addEventListener('change',this._fnCallback);
+
+
+          },//fin método renderEditMode
+          cancel:function(){
+            if(this._fnCallback){
+              this.el.querySelector('select').removeEventListener('change',this._fnCallback);
+              this._fnCallback = null;
+            }
+            ItemView.prototype.cancel.apply(this,arguments);
+          },
+          destroy_view: function(){
+
+            if(this._fnCallback){
+              this.el.querySelector('select').removeEventListener('change',this._fnCallback);
+            }
+
+            GenericManagerView.prototype.destroy_view.apply(this,arguments);
+
+          },
+          save: function(event){
+            this.clearErrors();
+            let attributes = {};
+            /*  Debemos serializar todos los inputs */
+            attributes = _.object(_.map(
+                  $(event.currentTarget.parentNode.parentNode).find('input'),
+                  function (item) {
+                      return [item.name,item.value];
+                    }
+                  ));
+
+            let ctags = this.el.querySelector('div.filters').querySelectorAll('c-tag'),
+                filters = [];
+
+            ctags.forEach((item)=>{ filters.push(item.value);})
+
+            attributes['filtro'] = filters;
+
+            this.model.save(attributes, {
+                wait:     true,
+                success:  this.success.bind(this),
+                error :   this.error.bind(this)
+            });
+          },
+        });
+
+        let view = new LenteView({
+          el:this._contentElement,
+          collection:app.lente,
+          header:['Material','Tipo','Color','Filtros','',''],
+          percentages:[20,20,20,30,5,5],
+          foreignCollection: app.fixedData.filtros,
+          itemView: LenteItemView,
+          fields: ['material','color','tipo']
+        });
+
+        this.renderView(view);
+      },
+      renderNewLenteSteps: function(){
+        if(this._stepsRendered) return;
+        this._wrapper.innerHTML = this._gridTemplate({data:{
+          titulos: ['Nuevo Laboratorio','Nuevo Lente','Nueva Filtro','T2'],
+          ids: ['new-lab-btn','new-lente-btn','new-filter-btn','new-t2-btn'],
+          parrafos: ['Ingresar la información de los laboratorios con los que trabaja.',
+                    'Ingresar la información del lente, la combinación de qué tipo puede ir con cada material y color. El laboratorio se agregará al completar la orden',
+                    'Seleccione para registrar los filtros disponibles para los lentes, previo a esto el lente ya debe estar registrado.',
+                    '-']
+          }
+        });
+
+        this.el.appendChild(this._wrapper);
+        this._gridItemsContainer = this._parentNode.querySelectorAll('div.sub-item-grid');
+        this._gridItemsContainer[3].remove();
+        this._gridItemsContainer.length = 3;
+        /*
+        * 0 Nuevo lente
+        * 1 Nuevo Filtro
+        */
+        this._gridItems = new Array(3)
+        this._max = 2;
+        this._gridItems[0] = new NewLaboratorioView({wrapper_el:this._gridItemsContainer[0],
+                                          collection:app.laboratorio,});
+        this._gridItems[1] = new NewLenteView({
+                                    wrapper_el:this._gridItemsContainer[1],
+                                    collection:app.lente,
+                                    fields:['color','tipo','material'],
+                                  })
+        this._gridItems[2] = new NewFiltroView({wrapper_el:this._gridItemsContainer[2],
+                                                collection:app.filtro,
+                                                fields:['filtro'],});
+        this.enableDisableForms(true);
+        this._stepsRendered = true;
+      },
+    });
+
+    var ControlView = TemplateView.extend({
+      events:{
+        'click button.close':'resetWindow',
+      },
+      className: 'form-render-container',
+      tagName: 'div',
+      initialize: function(options){
+        this.listenTo(app.eventBus,'edit',(url,type)=>{
+          app.opxhr(url,'GET',{}).then((data)=>{
+            this.renderForm(JSON.parse(data,type));
+          });
+        });
+        document.getElementById('main').appendChild(this.el);
+        this.el.innerHTML = '<button class="close">x</button><div class="split-cell"><div class="portfolio"></div><div class="form-info"></div></div>';
+        this._infoRef = this.el.querySelector('div.form-info');
+        this._photoRef = this.el.querySelector('div.portfolio');
+        this._photoTemplate = _.template(`<div><img src="<%= data.photo %>"><label><%= data.name %></label></div>`);
+        this.opticaViewForm = new NewOpticaView({wrapper_el:this._infoRef,collection:app.optica,});
+        this.opticaViewForm.el.querySelector('h1').textContent = 'Editar Optica';
+      },
+      renderForm: function(info,type){
+        this.opticaViewForm.render();
+        this.opticaViewForm.el.removeAttribute('style');
+        this._photoRef.innerHTML = this._photoTemplate({data:{photo:info.photo,name: info.name}});
+        this.opticaViewForm.el.querySelector('c-input[name="photo"]').required = false;
+        this.el.parentNode.firstElementChild.classList.add('ordenes-hidden');
+        this.el.classList.add('down-transition');
+
+        Object.keys(info).forEach((item)=>{
+          if(item == 'photo') return;
+          let el = this.opticaViewForm.el.querySelector(`c-input[name="${item}"]`);
+          if(el){ el.value = (info[item])?info[item]:''; el.validate();}
+        },this);
+      },
+      renderPhoto: function(photoURL, name){
+        /*
+          1. crear el image
+          2. crear el label con el nombre
+          3. ?? crear el boton de subir
+        */
+      },
+      resetWindow: function(){
+        while(this._infoRef.firstChild) this._infoRef.firstChild.remove();
+        this.el.classList.remove('down-transition')
+        this.el.parentNode.firstElementChild.classList.remove('ordenes-hidden');
+      },
+    })
+
+    var ItemViewFormEdit = ItemView.extend({
+      initialize: function(options){
+        this.data = renderJSON(this.model.attributes);
+        delete this.data['btn-cancel'];
+        delete this.data['btn-save'];
+        this.renderView = options.renderView;
+        this.listenTo(app.eventBus,'confirm:action' + this.model.cid,this.destroyModel);
+      },
+      render: function(){
+        this.renderView();
+        return this;
+      },
+      edit: function(){
+        app.eventBus.trigger('edit',this.model.get('uri'));
+      }
     });
 
     var OpticaView = TemplateView.extend({
@@ -1810,8 +2163,25 @@
           this.subViews = [];
           this.subViews.push(new TableView({
             collection:app.optica,
+            className: 'ordenes selected',
             header:['Nombre','Dirección','Teléfono','Teléfono','Correo','',''],
-            percentages:[20,30,10,10,20,5,5],
+            percentages:[10,30,7.5,7.5,35,5,5],
+            _populateTable: function(){
+              _(this._collection.models).each(function( model, index){
+                this._subviews.push(new ItemViewFormEdit({
+                  model:model,
+                  renderView: function(){
+                    this.el.removeAttribute('style');
+                    this.el.innerHTML = _.map(this.data, function(val,key,list){
+                      if(key!='id' && key!='uri')
+                        return `<td>${val}</td>`
+                      else
+                        return '';
+                    }).join('');
+                  }
+                }))
+              },this);
+            },
           }));
 
           this.subViews[0].el._cform.submit = function(event){
@@ -1821,12 +2191,13 @@
                 data: data
               });
           }
+          this.subViews.push(new ControlView());
+          this.subViews.push(new ModalView());
       },
       render: function(){
-
-          _(this.subViews).each(function( view ){
-              this.el.appendChild(view.el);
-          },this);
+        _(this.subViews).each(function( view ){
+            this.el.appendChild(view.el);
+        },this);
       },
       destroy: function(){
 
@@ -1834,14 +2205,107 @@
               view.destroy_view();
           }, this);
 
-          TemplateView.prototype.cleanView.apply(this,arguments);
       }
+    });
+
+    var SucursalView = GenericManagerView.extend({
+      events: {
+          'click #gest-sucursal':'sucursal',
+          'click #gest-empleados':'empleados',
+          'click #new-sucursal-full':'renderNewSucursalSteps',
+          'click #gest-permisos':'permisos',
+          'click #new-empleados-btn':'showSelectedForm',
+          'click #new-sucursal-btn':'showSelectedForm',
+          'click button[name="return"]':'returnToSteps',
+      },
+      initialize: function(options){
+        this._modal   = new ModalView();
+        this._current = null;
+        this._parentNode = options.contentElement;
+        this._contentElement  = 'div.section';
+        let div = document.createElement('div');
+        div.setAttribute('class','menu-bar btn-options');
+        div.innerHTML = `<ul class="top-lvl-dd">
+          <li>
+            <a><label>Registrar Sucursal</label></a>
+            <ul class="first-lvl-dd">
+              <li>
+                <button id="new-sucursal-full">Crear sucursal</button>
+              </li>
+              <li>
+                <button id="new-empleado">Registrar empleado</button>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a><label>Gestionar info. sucursal</label></a>
+            <ul class="first-lvl-dd">
+              <li>
+                <button id="gest-sucursal">Gestionar sucursal</button>
+              </li>
+              <li>
+                <button id="gest-empleados">Gestionar empleados</button>
+              </li>
+              <li>
+                <button id="gest-permisos">Gestionar permisos de empleados</button>
+              </li>
+            </ul>
+          </li>
+        </ul>`;
+        this.el.appendChild(div);
+        this._wrapper = document.createElement('div');
+        this._wrapper.setAttribute('class','section');
+        this.el.appendChild(this._wrapper);
+      },
+      renderNewSucursalSteps: function(){
+        if(this._stepsRendered) return;
+        this._wrapper.innerHTML = this._gridTemplate({data:{
+          titulos: ['Nueva sucursal','Nuevo empleado','',''],
+          ids: ['new-sucursal-btn','new-empleados-btn','t1','t2'],
+          parrafos: ['Ingresar la información de la sucursal, esta información será útil para la administración y para mostrar en las órdenes.',
+                    'Si ya tiene la información de la sucursal puede ingresar un nuevo usuario.',
+                    '',
+                    '']
+          }
+        });
+
+        this.el.appendChild(this._wrapper);
+        this._gridItemsContainer = this._parentNode.querySelectorAll('div.sub-item-grid');
+        this._gridItemsContainer[2].remove();
+        this._gridItemsContainer[3].remove();
+        this._gridItemsContainer.length = 2;
+        /*
+        * 0 Nueva Sucursal
+        * 1 Nuevo Empleado
+        */
+        this._gridItems = new Array(2)
+        this._max = 1;
+        this._gridItems[0] = new NewOpticaView({wrapper_el:this._gridItemsContainer[0],collection:app.optica,});
+        this._gridItems[1] = new NewEmpleadoView({wrapper_el:this._gridItemsContainer[1],collection:app.empleado,});
+        this.enableDisableForms(true);
+        this._stepsRendered = true;
+      },
+      returnToSteps: function(event){
+        if(this._selectedItemIndex < 0 || this._selectedItemIndex > this._max) return;
+        this._gridItems[this._selectedItemIndex].el.scrollTo(0,0);
+        GenericManagerView.prototype.returnToSteps.apply(this,arguments);
+      },
+      sucursal: function(event){
+
+        this.renderView(new OpticaView({
+          el:this._contentElement,
+          collection:app.optica,
+        }));
+
+      },
     });
 
     app.views.HomePageView    = HomePageView;
     app.views.LoginView       = LoginView;
     app.views.HeaderView      = HeaderView;
     app.views.InventarioView  = InventarioView;
+    app.views.LenteView       = LentesAllView;
+    app.views.SucursalView    = SucursalView;
     app.views.FormView        = FormView;
     app.views.TemplateView    = TemplateView;
     app.views.ModalView       = ModalView;

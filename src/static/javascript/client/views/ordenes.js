@@ -3,14 +3,11 @@
   var createElement = function(type,properties,custom){
 
     let el = document.createElement(type);
-
     if(custom){
       Object.keys(properties).forEach(data=>{
         el[data] = properties[data];
       });
-
       return el;
-
     }
 
     Object.keys(properties).forEach(key=>{
@@ -157,7 +154,7 @@
         select.setAttribute('style','background:#47b8bd;');
         break;
       case "1":
-        select.setAttribute('style','background:#4646ff;');
+        select.setAttribute('style','background: #2a6398;');
         break;
       case "2":
         select.setAttribute('style','background:#24b944;');
@@ -165,7 +162,7 @@
           select.setAttribute('disabled','');
         break;
       case "3":
-        select.setAttribute('style','background:black; color:white;');
+        select.setAttribute('style','background: #232323;color:white;');
         break;
       case "4":
         select.setAttribute('style','background:#ff3f3f;');
@@ -176,7 +173,24 @@
         select.removeAttribute('style');
     }
   }
+  var statusText = function(value){
 
+    switch (Number(value)) {
+      case 0:
+        return 'Pendiente';
+      case 1:
+        return 'Listo';
+      case 2:
+        return 'Entregado';
+      case 3:
+        return 'Con Problemas';
+      case 4:
+        return 'Cancelado';
+      default:
+        return 'ERROR!!!!!!';
+      }
+
+  }
   /* INICIO DE FUNCIONES DE REFRACCION */
   var _ejeValidation = function(){
 
@@ -246,7 +260,7 @@
      titulo = "Cantidad recibida (Q.)"
      message = "Número, máximo 2 decimales. El cambio se calculará automáticamente"
      name = "recibida"
-     ></c-input>
+     required></c-input>
      <div class="information">
         <label class="title">Cambio (Q.)</label>
         <label name="change">0</label>
@@ -309,7 +323,7 @@
                 <% } %>
         </div></div></div>`,
   abono_form_template = `<form>
-      <h1><center>Nuevo Abono</center></h1>
+      <h1>Nuevo Abono</h1>
       <hr class="linear"/>
       <div class="ordenes-static-info">
       <div class="split">
@@ -328,14 +342,15 @@
           <label class="legend">Debe seleccionar alguna forma de pago, si no seleccione sin abono</label>
         </div>
         <c-input
-        titulo="Cantidad a pagar(Q.)"
+        titulo="Cantidad a pagar (Q.)"
         pattern="^[1-9][0-9]+(\\.[0-9]{1,2})?$"
         name = "payment"
+        required
         message="Si ingresa decimales debe ingresar 1 o 2 cifras."></c-input>
         </div>
         <div class="split">
            <div class="information">
-             <label class="title">Abonado(Q.)</label>
+             <label class="title">Abonado (Q.)</label>
              <label name="abonado"><%= model.get('abonado') %></label>
            </div>
            <div class="information">
@@ -343,9 +358,9 @@
              <label name="saldo"><%= (model.get('total')-model.get('abonado')) %></label>
            </div>
           </div>
-        <div class="split">
-          <c-input titulo="Fecha de entrega"
-          message="Fecha de nuevo abono, el formato es MES/DIA/AÑO, si se deja en blanco se tomará hoy por defecto."
+        <div class="split" style="margin-top:1vh">
+          <c-input titulo="Fecha del abono"
+          message="Fecha de nuevo abono si se atrasó en registrarlo, el formato es MES/DIA/AÑO, si se deja en blanco se tomará hoy por defecto."
           tipo="date"
           name="fecha"
           ></c-input>
@@ -367,7 +382,7 @@
   pago_template.innerHTML = `<section>
                              <c-form name="Pago">
                                <form>
-                                 <h1><center>Pago</center></h1>
+                                 <h1>Pago</h1>
                                  <hr class="linear" />
                                  <div class="split">
                                    <c-input
@@ -422,7 +437,7 @@
    lens_template.innerHTML = `<section>
     <c-form name="Lente">
       <form>
-        <h1><center>Lente</center></h1>
+        <h1>Lente</h1>
         <hr class="linear">
         <div class="split">
           <c-select titulo="Tipo de lente"
@@ -585,7 +600,7 @@
 
  refraction_template.innerHTML = `<c-form name="Refracción" class="cs_h1rf">
       <form>
-        <h1><center>Refracción</center></h1>
+        <h1>Refracción</h1>
         <hr class="linear">
         <div class="refraction-form">
           <div class="switchbtn">
@@ -660,7 +675,7 @@
            }else if(this._action == 3){
              app.eventBus.trigger('refractionResponse',[false,0,this._method]);
              delete this._method;
-           }else if(this._action == 4){
+           }else if(this._action >= 4 && this._action <= 6){
 
              let textarea = this.el.querySelector('textarea');
 
@@ -672,15 +687,85 @@
                   p.classList.add('error-p');
                   return;
                 }else{
-                  app.eventBus.trigger('abonoConfirm',true,textarea.value);
+                  switch (this._action) {
+                    case 4:
+                      app.eventBus.trigger('abonoConfirm',true,textarea.value);
+                      break;
+                    case 5:
+                    case 6:
+                      app.eventBus.trigger('statusChange:'+this._cid,true,textarea.value);
+                      delete this._cid;
+                      break;
+                    default:
+                  }
                 }
 
               }else{
                 event.currentTarget.parentNode.insertBefore(createElement('textarea',{'maxlength':255,'rows':3,'style':'margin:0;'}),event.currentTarget);
-                event.currentTarget.parentNode.insertBefore(createElement('p',{'name':'error','textContent':'Ingresar una nota de por qué se cancela el abono'}),event.currentTarget);
+                event.currentTarget.parentNode.insertBefore(createElement('p',{'name':'error','textContent':`Ingresar una nota del porqué desea
+                                ${ (this._action==4)?'cancelar el abono.':(this._action == 6)?"cancelar la orden.":"cambiar status a: 'Con Problemas'." }`}),
+                                event.currentTarget);
                 return;
               }
 
+           }else if(this._action == 7){
+
+             if(this._lab != undefined && !this.el.querySelector('div.lab-info')){
+               let div = createElement('div',{'class':'split lab-info','style':'display:none;'});
+               div.innerHTML += `<c-input
+               name = "costo"
+               titulo = "Costo del lente"
+               pattern="^[1-9][0-9]+(\\.[0-9]{1,2})?$"
+               required></c-input>
+               <c-select
+               titulo = "Del laboratorio"
+               name = "laboratorio"
+               show></c-select>`;
+
+               let parentNode = this.el.querySelector('.modal-body');
+               parentNode.insertBefore(div,parentNode.firstChild);
+               app.fixedData.laboratorios.fetch().then((data)=>{
+                 let csel = div.querySelector('c-select');
+                 csel.options = app.fixedData.laboratorios.data;
+                 div.removeAttribute('style');
+                 this._pref = createElement('p',{'textContent':'Ingresar estos datos para continuar.'});
+                 div.children[0].parentNode.parentNode.insertBefore(this._pref,div.children[0].parentNode.nextSibling);
+                 this._isValidLab = true;
+               });
+               return;
+             }else if(this._isValidLab && this._counter == 1){
+                let childNodes = this.el.querySelector('div.lab-info').children, data = {};
+                data[childNodes[0].name] = childNodes[0].value;
+                data[childNodes[1].name] = childNodes[1].value;
+                delete this._isValidLab;
+                delete this._counter;
+                delete this._pref;
+                delete this._lab;
+                app.eventBus.trigger('statusChange:'+this._cid,true,null,data);
+
+                this.close();
+                return;
+             }else{
+
+               let childNodes = this.el.querySelector('div.lab-info').children;
+               Array.from(childNodes).forEach(item=>this._isValidLab=this._isValidLab && item.validate(),this);
+
+               if(!this._isValidLab){
+                 this._pref.textContent = 'La información es inválida, ingrese los datos nuevamente';
+                 this._pref.classList.add('error-p');
+                 Array.from(childNodes).forEach(item=>item.reset(),this);
+                 this._counter = 0;
+                 return;
+               }else{
+                 this._pref.textContent = 'La información es la correcta? De ser así presione SI nuevamente para guardar.';
+                 this._pref.classList.remove('error-p');
+                 this._counter = 1;
+                 return;
+               }
+             }
+
+             app.eventBus.trigger('statusChange:'+this._cid,true,);
+             delete this._cid
            }
          delete this._action;
          this.close();
@@ -696,11 +781,21 @@
          }else if(this._action == 3){
            app.eventBus.trigger('refractionResponse',[true,1,this._method]);
            delete this._method;
-         }else if(this._action == 4){
-           app.eventBus.trigger('abonoConfirm',false,null);
+         }else if(this._action >= 4){
+           switch (this._action) {
+             case 4:
+               app.eventBus.trigger('abonoConfirm',false,null);
+               break;
+             case 5:
+             case 6:
+             case 7:
+               app.eventBus.trigger('statusChange:'+this._cid,false,null);
+               delete this._cid
+               break;
+             default:
+           }
            delete this._action;
          }
-
          this.close();
        },
        close: function(){
@@ -727,7 +822,7 @@
          this.$el.show();
 
        },
-       renderMessageMode: function(data) {
+       renderMessageMode: function(data, action = 4, cid = null) {
 
          if(data.hasOwnProperty('method')){
            this._action =  3;
@@ -738,12 +833,16 @@
                           buttons:true
                        }));
          }else{
-           this._action =  4;
+           this._action = action;
+           this._cid = cid;
+           this._lab = data.lab;
            this.$el.html(this.templateGenericPrompt({title:data.title}));
          }
          this.$el.show();
        },
-       renderMessageBoxMode: function(data){
+       renderMessageBoxMode: function(data, action = null){
+
+         if(action) this._action = action;
          let html = this.genericMessageBox(data);
          this.$el.html(html);
          this.$el.show();
@@ -809,7 +908,8 @@
       this._payRef = this.el.querySelector("select[name='pagado']");
       this._payRef.value = this.model.get('pagado');
       this._statusRef.value = this.model.get('status');
-      setSelectColor(this._statusRef,false);
+      this.listenTo(app.eventBus,'statusChange:'+this.model.get('id'),this._changeStatus);
+      setSelectColor(this._statusRef);
       setSelectColor(this._payRef,false);
     },
     clienteTemplate: function(){
@@ -822,14 +922,87 @@
       app.eventBus.trigger('ordenInfoClick',this.model.get('uri'));
     },
     cambioPagado: function(event){
-      alert(event.currentTarget);
+      app.eventBus.trigger('confirmMessage',{'title':`Esta seguro que desea cambiar de A a B`},5);
     },
-    cambioStatus: function(){
-      app.eventBus.trigger('statusClick');
+    cambioStatus: function(event){
+      let oldval = this.model.get('status'), newval = Number(event.currentTarget.value);
+      if(oldval == 2 || oldval == 4){
+        app.eventBus.trigger('messageBox',{'title':'Imposible volver a este estado',
+                              'message':[`El estado ${statusText(oldval)} es final, para cambiarlo cambiarlo debe contactar al administrador.`],
+                              'extra':"",'id':this.model.get('id')});
+      }
+
+      if(newval == 0){
+        app.eventBus.trigger('messageBox',{'title':'Imposible volver a este estado',
+                              'message':[`No puede regresar una orden con status: '${statusText(oldval)}' a orden con status: '${statusText(newval)}'`],
+                              'extra':"",'id':this.model.get('id')});
+        this._statusRef.value = oldval;
+      }
+
+      if(newval == 1 && (oldval == 3 || oldval == 0)){
+        if(oldval == 0 && (this.model.type == 'C' || this.model.type == 'L'))
+          app.eventBus.trigger('confirmMessage',{
+            'title':`Esta seguro que desea cambiar de '${statusText(this.model.get('status'))}' a '${statusText(event.currentTarget.value)}'.`,'lab':true},7,this.model.get('id'));
+        else
+        app.eventBus.trigger('confirmMessage',{
+          'title':`Esta seguro que desea cambiar de '${statusText(this.model.get('status'))}' a '${statusText(event.currentTarget.value)}'.`},7,this.model.get('id'));
+      }
+
+      if(newval == 3 && (oldval == 0 || oldval == 1)){
+        app.eventBus.trigger('confirmMessage',{
+          'title':`Esta seguro que desea cambiar de '${statusText(this.model.get('status'))}' a '${statusText(event.currentTarget.value)}'.`},5,this.model.get('id'));
+      }
+
+      if(newval == 2 && oldval == 1){
+        app.eventBus.trigger('confirmMessage',{
+          'title':`Esta seguro que desea cambiar de '${statusText(this.model.get('status'))}' a '${statusText(event.currentTarget.value)}'.`},7,this.model.get('id'));
+      }else if (newval == 2 && oldval != 1){
+        app.eventBus.trigger('messageBox',{'title':'Cambie el estado a listo antes de continuar',
+                              'message':[`No puede pasar una orden con status: '${statusText(oldval)}' a orden con status: '${statusText(newval)}'`],
+                              'extra':"",'id':this.model.get('id')});
+      }
+
+      if((newval == 4 && oldval != 2)){
+        app.eventBus.trigger('confirmMessage',{
+          'title':`Esta seguro que desea cambiar de '${statusText(this.model.get('status'))}' a '${statusText(event.currentTarget.value)}'.`},6,this.model.get('id'));
+      }
+
+      this._statusNew = newval;
+      this._statusRef.value = oldval;
+
     },
-    applySelectChanges: function(element){
-      console.log(element);
-      setSelectColor(element);
+    _changeStatus: function(change,reason,lab = {}){
+
+      if(!change){
+        this._statusRef.value = this.model.get('status');
+        setSelectColor(this._statusRef);
+        return;
+      }
+
+      if(!_.isEmpty(lab) && (this.model.type == 'C' || this.model.type =='L')){
+
+        app.opxhr(this.model.get('uri'),'PATCH',JSON.stringify({'status':1,'lente':lab}))
+        .then(()=>{
+          this._statusRef.value = this._statusNew;
+          this.model.set('laboratorio',app.fixedData.laboratorios.data.get(lab.laboratorio));
+          this.model.set('costolente',lab.costolente);
+          setSelectColor(this._statusRef);
+          this.model.set('status',this._statusNew);
+          delete this._statusNew;
+        }).catch((error)=>{
+          alert(error);
+        });
+        return;
+      }
+
+      app.opxhr(this.model.get('uri'),'PATCH',JSON.stringify({'status':this._statusNew,'notas':reason}))
+      .then(()=>{
+        this._statusRef.value = this._statusNew;
+        setSelectColor(this._statusRef);
+        this.model.set('status',this._statusNew);
+        delete this._statusNew;
+      });
+
     },
     renderPDF: function(){
       console.log(this);
@@ -866,7 +1039,11 @@
       this.abonoFormTemplate = _.template(abono_form_template);
       this.listenTo(app.eventBus,'abonoConfirm',this.deleteAbono);
     },
-    pickChange: function(){
+    pickChange: function(event){
+
+      event.currentTarget.parentNode.parentNode.removeAttribute('ttip');
+
+      if(this._calculatorDiv) return;
 
       let parentElement = this.el.querySelector('#abono-orden-form .ordenes-static-info'),
           div = createCashDiv(this.el.querySelector('c-input[name="payment"]'));
@@ -874,7 +1051,9 @@
       this._calculatorDiv = div;
 
     },
-    closeChange: function(){
+    closeChange: function(event){
+
+      event.currentTarget.parentNode.parentNode.removeAttribute('ttip');
 
       if(this._calculatorDiv){
         this._calculatorDiv.remove();
@@ -1052,19 +1231,77 @@
         ordenForm.setAttribute('style','display:none');
         abonoForm.removeAttribute('style');
         abonoForm.classList.add('selected');
-      },1000);
+      },500);
+      console.log(this.model);
+      this.el.querySelector('#sinabono').remove();
+      this.el.querySelector('label[for="sinabono"]').remove();
 
       let cinp = this.el.querySelector('c-input[name="payment"]'),
-          saldo = this.model.get('saldo');
+          saldo = (Number(this.model.get('total'))-Number(this.model.get('abonado'))).toFixed(2),
+          radios = this.el.querySelectorAll('input[name="payform"]'),
+          self = this;
 
       cinp._extraValidationStep = function(){
 
-        if(this.value == saldo){
+        let selected = Array.prototype.find.call(radios, (child)=> child.checked);
+
+        if (selected === undefined){
+          radios[0].parentNode.parentNode.setAttribute('ttip','Debe de seleccionar una opción.');
+          return false;
+        }
+        else
+          selected.parentNode.parentNode.removeAttribute('ttip');
+
+        if(Number(this.value) > saldo){
           this.setToolTip("El valor a abonar no puede ser mayor al saldo pendiente");
           return false;
         }
 
+        if(self.el.querySelector('c-input[name="recibida"]')!=null){
+
+          let inp = self.el.querySelector('c-input[name="recibida"]');
+
+          if(inp.value=='') return true;
+
+          if (Number(inp.value) < Number(this.value)){
+            inp.setToolTip("La cantidad recibida debe superar o ser igual a la cantidad a abonar");
+            return false;
+          }
+
+          self.el.querySelector('label[name="change"]').textContent = (Number(inp.value) - Number(this.value)).toFixed(2);
+
+        }
+
         return true;
+
+      }
+
+      this.el.querySelector('c-input[tipo="date"]')._extraValidationStep = function(){
+
+        if(isNaN(this.value)) return true;
+
+        let date = new Date(this.value);
+        if(!this._today) this._today = new Date();
+
+        if(date.getUTCFullYear() != this._today.getUTCFullYear()){
+          this.setToolTip('Ingrese una fecha válida');
+          return false;
+        }
+
+        if((date.getUTCMonth() == this._today.getUTCMonth() - 1) || (date.getUTCMonth() == this._today.getUTCMonth())){
+          if(date.getUTCMonth() == this._today.getUTCMonth())
+            if(date.getUTCDate() < this._today.getUTCDate())
+              return true;
+            else {
+                this.setToolTip('No se pueden registrar fechas futuras');
+            }
+          else
+            return true;
+        }else{
+          this.setToolTip('No se permite registrar un abono con más de 1 mes de antigüedad.');
+          return false;
+        }
+
       }
 
     },
@@ -1080,20 +1317,42 @@
         while(abonoForm.firstChild) abonoForm.firstChild.remove();
         ordenForm.removeAttribute('style');
         ordenForm.classList.add('selected');
-      },1000);
+      },500);
 
     },
     saveAbono: function(event){
 
       event.preventDefault();
 
-      if(!event.currentTarget.validate())
-        return;
-
       let abonoForm = this.el.querySelector('#abono-orden-form'),
           data = abonoForm.serializeForm();
 
-      console.log(data);
+      if(!abonoForm.validate())
+        return;
+
+      if(isNaN(data.fecha))
+        delete data.fecha;
+
+      app.opxhr(this.model.get('url')+"save_abono/",'POST',JSON.stringify(data)).then((data)=>{
+        /*
+        1. update pagado x
+        2. update model  x
+        3. update saldo
+        4. update ui
+        5. update OrdenItemView
+        */
+        let datos = JSON.parse(data), abonos = this.el.querySelector('div.abono-info'),
+            div = createElement('div',{});
+
+        div.innerHTML = `<label>${datos.info}</label>
+                          <button class="rounded-btn" name="delete-abono" value="${datos.id}" type="button">
+                            <i class="fa fa-trash"></i>
+                          </button>`;
+        abonos.appendChild(div);
+        this.model.set('pagado',datos.pagado);
+        this.model.set('abonado',datos.abonado);
+        this.closeAbono();
+      });
 
     },
     confirmDeleteAbono: function(event){
@@ -1107,7 +1366,7 @@
         app.opxhr(this.model.get('url') + 'save_abono/','DELETE',JSON.stringify({id:this._abonoValue,nota:val})).then((data)=>{
           let datos = JSON.parse(data),
               btn = this.el.querySelector(`button[value="${datos.id}"]`);
-          btn.parentNode.insertBefore(createElement('span',{'class':'fa fa-times','style':'color:red'}),btn);
+          btn.parentNode.insertBefore(createElement('span',{'class':'cancelado fa fa-times'}),btn);
           btn.remove();
         });
       }
@@ -1120,7 +1379,7 @@
 
   var TableView = TemplateView.extend({
     tagName: "c-table",
-    className: 'ordenes',
+    className: 'ordenes selected',
     initialize: function(options){
       this.ControlView = new ControlWindow({_contentElement: options._contentElement});
       this.optionFormContainer = options._contentElement.querySelector('div.form-render-container');
@@ -1128,26 +1387,22 @@
       this.el.setAttr([3,10.5,13.5,18,15,15,10,10,5], ['','No.Orden','Fecha','Cliente','Estado','Pago','Total','Abonos','Print']);
       this.el.collection = this.collection;
       this.subViews = [];
-      this.collection.fetch().then( ()=>{
-
-        this.collection.models.forEach(function(model,index){
-          this.subViews.push(new OrdenItemView({
-            model: model,
-          }));
-          this.el.getTBody().appendChild(this.subViews[index].el);
-        },this);
-
-        options._contentElement.appendChild(this.el);
-        this.el._cform.collection = this.collection;
-
-      });
+      this.el._cform.collection = this.collection;
+      this.el._cform.submit = function(event){
+          event.preventDefault();
+          let data = this.serializeForm(true);
+          this._collection.fetch({
+            data: data
+          });
+        }
+      this.collection.fetch();
       this.extras();
       this.listenTo(app.eventBus,'clientClick',this.renderClientInfo);
       this.listenTo(app.eventBus,'ordenInfoClick',this.renderOrdenInfo);
-      this.listenTo(this.collection,'update',()=>{});
+      this.listenTo(this.collection,'update',this._reRenderTable);
       this.clientTemplate = _.template(`<c-form style="border-bottom:1px solid black;">
                               <form style="padding:25px;">
-                              <h2><center>Información del cliente</center></h2>
+                              <h2>Información del cliente</h2>
                               <hr class="linear">
                               <div>
                                 <div class="split">
@@ -1207,7 +1462,7 @@
                               </div>
                               </form></c-form>
                               <c-form id="client-refraction">
-                                <h2><center>recetas oftalmológicas</center></h2>
+                                <h2>recetas oftalmológicas</h2>
                                 <hr class="linear">
                                 <form>
                                     <% model.get('refractions').forEach( function(item){ %>
@@ -1237,6 +1492,7 @@
       this.el.getFilters().appendChild(cselpagado)
 
       cselstatus.listeners = function(){
+
         setSelectColor(cselstatus._csel,false);
         let data = this.serializeForm();
         console.log(data);
@@ -1246,33 +1502,39 @@
       }.bind(this.el._cform);
 
       cselpagado.listeners = function(){
+
         setSelectColor(cselpagado._csel,false);
         let data = this.serializeForm();
         this.collection.fetch({
           data: data
         });
+
       }.bind(this.el._cform);
 
+      options._contentElement.appendChild(this.el);
     },
     extras: function(){
 
       let cdpfin = createElement('c-datepicker',
-                                {title : 'Fecha fin:',name: 'last_date'},true),
+                                {title : 'Menor a:',name: 'last_date'},true),
           cdpini = createElement('c-datepicker',
-                              {title : 'Fecha inicio:',name: 'ini_date'},true),
+                              {title : 'Mayor a:',name: 'ini_date'},true),
+
           fnCallback = function(){
 
             let data = this.serializeForm();
 
-            app.ordencompleta.fetch({
+            this._collection.fetch({
               data: data
-            })
+            });
+
           }.bind(this.el._cform);
 
       this.el.getFilters().appendChild(cdpini);
       this.el.getFilters().appendChild(cdpfin);
       cdpini.callback = fnCallback;
       cdpfin.callback = fnCallback;
+      this.el.createFilterControl();
     },
     renderClientInfo: function(url){
       this.el.classList.add('ordenes-hidden');
@@ -1298,6 +1560,44 @@
         this.ControlView.form  = 'orden';
       });
 
+    },
+    _reRenderTable: function(){
+
+      this.subViews.forEach(function(element){
+        element.destroy_view();
+      });
+
+      this.subViews.length = 0;
+      /*  eliminamos posibles elementos que aún están en el cuerpo  */
+      while (this.el.getTBody().hasChildNodes())
+        this.el.getTBody().removeChild(this.el.getTBody().lastChild);
+
+      this._renderTable();
+    },
+    _renderTable: function(){
+
+      this.collection.models.forEach(function(model,index){
+        this.subViews.push(new OrdenItemView({
+          model: model,
+        }));
+
+        this.el.createFooter();
+        this.el.renderFooter();
+      },this);
+
+      this._renderSubViews();
+    },
+    _renderSubViews: function(){
+
+      _(this.subViews).each(function( view ){
+          view.render();
+          this.el.getTBody().append(view.el);
+        },this);
+
+      if(!this.subViews.length)
+        this.el.renderEmptyTable();
+
+      this.el.renderFooter(this);
     },
   });
 
@@ -1369,6 +1669,7 @@
             validate:true,
             success: function (collection,textStatus,jqXHR) {
               if((self._clientModel = collection.models.find(item => item.get('contact_1') == formdata.contact_1))){
+                  self._clientModel = self._clientModel.get('id');
                   self._checkforclient = true;
                   if(!fun)
                     self.goToNextSection();
@@ -1449,7 +1750,7 @@
       currentForm.parentNode.classList.add('slide-transition');
       currentForm.parentNode.classList.remove('selected');
 
-      setTimeout(this.destroy_view.bind(this),1000);
+      setTimeout(this.destroy_view.bind(this),500);
 
     },
     _renderButtons:function(){
@@ -1473,7 +1774,7 @@
         currentForm.parentNode.removeAttribute('class');
         lastForm.parentNode.setAttribute('class','selected');
         this._nextBtn.removeAttribute('style');
-      },1000);
+      },500);
 
       this._current = this._current - 1;
 
@@ -1495,7 +1796,7 @@
         currentForm.parentNode.removeAttribute('class');
         nextForm.parentNode.setAttribute('class','selected');
         this._backBtn.removeAttribute('style');
-      },1000);
+      },500);
 
 
       this.saveFormData(currentForm);
@@ -1581,7 +1882,7 @@
       setTimeout(()=>{
         currentForm.parentNode.removeAttribute('class');
         wantedForm.parentNode.setAttribute('class','selected');
-      },1000);
+      },500);
 
       this._current = Number(clickedButton.getAttribute('value'));
 
@@ -1617,14 +1918,14 @@
 
   var OrdenAroView = GenericOrdenView.extend({
     events: function(){
-      return _.extend(GenericOrdenView.prototype.events,{'submit c-form':'submit',
-      'click #efectivo':'changePicked',
-      'click input[type="radio"]:not(#efectivo)':'deleteChange',
-    });
+        return _.extend(GenericOrdenView.prototype.events,{'submit c-form':'submit',
+                          'click #efectivo':'changePicked',
+                          'click input[type="radio"]:not(#efectivo)':'deleteChange',
+                        });
     },
     className: 'section-list',
     template:`<section class = "selected"><c-form name="Cliente"><form>
-              <h1><center>Datos del cliente<center></h1>
+              <h1>Datos del cliente</h1>
               <hr class="linear" />
               <div class="split">
                 <c-input
@@ -1663,7 +1964,7 @@
         <section>
           <c-form name="Aro">
             <form>
-              <h1><center>Elección del aro</center></h1>
+              <h1>Elección del aro</h1>
               <hr class="linear" />
               <% if(!app.session.get('sucursal')){ %>
                 <div class='split'><c-select titulo ='Sucursal de la orden' name='optica' show
@@ -1823,13 +2124,21 @@
           }
         });
       },
-      changePicked: function(){
+      changePicked: function(event){
+
+        event.currentTarget.removeAttribute('ttip');
+
+        if(this._calculatorDiv) return;
+
         let parentElement = this.el.querySelector('c-form[name="Pago"] > form'),
             div = createCashDiv(this.el.querySelector('c-input[name="payment"]'));
         parentElement.insertBefore(div,parentElement.querySelectorAll(':scope > div')[2]);
         this._calculatorDiv = div;
       },
-      deleteChange: function(){
+      deleteChange: function(event){
+
+        event.currentTarget.parentNode.parentNode.removeAttribute('ttip');
+
         if(this._calculatorDiv){
           this._calculatorDiv.remove();
           delete this._calculatorDiv;
@@ -2168,22 +2477,99 @@
     },
   });
 
+  var OrdenLenteView = OrdenCompletaView.extend({
+    initialize: function(){
+      OrdenCompletaView.prototype.initialize.apply(this,arguments);
+      let sections = this.el.querySelectorAll('section');
+      this._formList.length = 0
+      sections.forEach((item,index)=>{
+        if(index == 3)
+          item.remove();
+        else if(index != 3 && index != 4)
+          this._formList[index] = item.firstElementChild;
+        else if(index == 4)
+          this._formList[3] = item.firstElementChild;
+      },this)
+
+      this._formList[2].firstElementChild.setAttribute('style','margin-top: 20px;padding: 15px 25px 10px; overflow:auto; height:76vh;');
+      let refNode = this._formList[2].firstElementChild.lastElementChild,
+          obsdivbtn = createElement('div',{'class':'add-obs-div'}),
+          obsdiv = createElement('div',{'style':'display:none;'});
+      obsdivbtn.innerHTML = `<button id="add-obs">Observaciones <span class="fa fa-sticky-note"></span></button></div>`
+      obsdiv.innerHTML = `<label class="title">Observaciones</label><textarea placeholder="Algún comentario a agregar, patologías o antecedentes. [Máximo de 255 caracteres]" rows="3" maxlength="255" name="observaciones"></textarea>`
+      refNode.parentNode.insertBefore(obsdivbtn,refNode);
+      refNode.parentNode.insertBefore(obsdiv,refNode);
+      this._obsFn = function(event){
+        let observaciones = this._formList[2].firstElementChild.querySelector('textarea');
+        if(observaciones.parentNode.style.display == 'none'){
+          observaciones.parentNode.style.display = 'block';
+          event.currentTarget.setAttribute('style','color: #ffffff;background: #252424;');
+        }else {
+          observaciones.parentNode.style.display = 'none';
+          event.currentTarget.removeAttribute('style');
+        }
+      }.bind(this)
+
+      obsdivbtn.querySelector('#add-obs').addEventListener('click', this._obsFn);
+
+      let div = this.el.querySelector('div.left-sidebar div');
+      while(div.firstChild) div.firstChild.remove();
+      this._renderButtons();
+      this._max = this._formList.length - 1;
+      console.log(this);
+    },
+    fillCollections: null,
+    submitToServer:function() {
+
+      let data = {};
+
+      data.cliente = this._formData[0];
+      this._clientModel && (data.cliente.id = this._clientModel);
+      data.refraccion = this._formData[1][0];
+      data.refraccion_2 = (!this._formData[1][1])?{}:this._formData[1][1];
+      data.lente = this._formData[2];
+      data.observaciones = this._formData[2].observaciones;
+      _.extend(data,this._formData[3]);
+      console.log(data);
+      $.ajax({
+        url: app.urls.ordenlente,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(succ){
+          console.log(succ);
+          alert('success');
+        },
+        error: function(error){
+          console.log(error);
+          alert('error');
+        }
+      });
+    },
+    destroy_view: function () {
+      this._formList[2].querySelector('#add-obs').removeEventListener('click',this._obsFn);
+      OrdenCompletaView.prototype.destroy_view.apply(this,arguments);
+    },
+  });
 
   var OrdenesView = TemplateView.extend({
     className: "menu-bar btn-options",
     events:{
       'click #orden-completa':'complete_order',
       'click #orden-aro':'aro_order',
-      'click #orden-reparación':'repair_order',
+      'click #orden-repair':'repair_order',
       'click #orden-lente':'lens_order',
       'click #orden-examen':'test_order',
+    },
+    repair_order: function() {
+      this.renderView(new OrdenLenteView({contentElement:this._contentElement}));
     },
     lens_order: function(){
       this._current =  new app.tmp({_contentElement:document.getElementById('main'),
       collection: app.ordencompleta,
       orderTemplate:`<c-form id="orden-form">
                       <form>
-                          <h1><center> Información Orden</center></h1>
+                          <h1> Información Orden</h1>
                   		    <hr class="linear">
                           <div class="ordenes-static-info">
                               <label>NÚMERO DE ORDEN:</label>
@@ -2229,7 +2615,7 @@
                                       <i class="fa fa-trash"></i>
                                     </button>
                                     <% }else{%>
-                                      <span class="fa fa-times" style="color:#ff3f3f;">
+                                      <span class="cancelado fa fa-times">
                                     <% } %>
                                   </div>
                                 <% }); %>
@@ -2281,36 +2667,35 @@
 
 
 
-     },
-     aro_order:function(){
+    },
+    aro_order:function(){
        this.renderView(new OrdenAroView({contentElement:this._contentElement}));
-     },
-     complete_order: function(){
+    },
+    complete_order: function(){
        this.renderView(new OrdenCompletaView({contentElement:this._contentElement}));
-     },
-     renderView: function(view){
-       if(this._current){
-         this._current.destroy_view();
-       }
-       this.el.setAttribute('style','display:none');
-       this._current = view;
-       view.on('done',()=>{ this.el.removeAttribute('style');});
-       this._current.render();
-     },
-     renderMenu: function(){
-       this._current.destroy();
-       this._current = null;
-     },
-     render:function(){
-       this._contentElement.appendChild(this.el);
-     },
-     destroy: function() {
-       if(this._current)
-         this._current.destroy_view();
-
+    },
+    renderView: function(view){
+     if(this._current){
+       this._current.destroy_view();
+     }
+     this.el.setAttribute('style','display:none');
+     this._current = view;
+     view.on('done',()=>{ this.el.removeAttribute('style');});
+     this._current.render();
+    },
+    renderMenu: function(){
+     this._current.destroy();
+     this._current = null;
+    },
+    render:function(){
+     this._contentElement.appendChild(this.el);
+    },
+    destroy: function() {
+     if(this._current)
+       this._current.destroy_view();
        this._modal.destroy_view();
        TemplateView.prototype.destroy_view.apply(this,arguments);
-     }
+    }
    });
 
    app.views.OrdenesView = OrdenesView;

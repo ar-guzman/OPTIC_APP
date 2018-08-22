@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from inventario.utils import get_count_digits
-from ..models import Empleado, Cliente, Aro_Orden, Refraction, Completa_Orden
+from ..models import Empleado, Cliente, Aro_Orden, Refraction, Completa_Orden, Lente_Orden
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -112,6 +112,17 @@ class ClienteSerializer(serializers.ModelSerializer):
             if get_count_digits(value) != 8:
                 raise serializers.ValidationError('Debe ingresar un número de teléfono válido.')
         return value
+
+    def to_representation(self, instance):
+        representation = super(ClienteSerializer, self).to_representation(instance)
+        request = self.context['request']
+        if request.method == 'GET' and 'partial' in request.GET:
+            for k in list(self.fields.keys()):
+                if k not in ['id','firstname','lastname','contact_1']:
+                    representation.pop(k)
+        return representation
+
+
 
 class AroOrdenSerializer(serializers.ModelSerializer):
     uri = serializers.HyperlinkedIdentityField(
@@ -250,6 +261,74 @@ class CompletaOrdenInfoSerializer(serializers.ModelSerializer):
         representation['cliente'] = {'firstname':cliente.pop('firstname'),'lastname':cliente.pop('lastname'),
                                      'uri':cliente.pop('uri')}
         for i in instance.abonos_completa.all():
+            abono += i.pago
+        representation['abono'] = abono
+        return representation
+
+class LenteOrdenSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordenlente-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = Lente_Orden
+        exclude = ('uuid','filtros')
+
+class LenteOrdenInfoSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordenlente-detail',
+        lookup_field='uuid'
+    )
+    cliente = ClienteSerializer(many=False)
+
+    class Meta:
+        model = Completa_Orden
+        exclude = ('uuid',)
+
+    def to_representation(self, instance):
+        representation = super(LenteOrdenInfoSerializer, self).to_representation(instance)
+        abono = 0
+        cliente = representation.pop('cliente')
+        representation['cliente'] = {'firstname':cliente.pop('firstname'),'lastname':cliente.pop('lastname'),
+                                     'uri':cliente.pop('uri')}
+        for i in instance.abonos_lente.all():
+            abono += i.pago
+        representation['abono'] = abono
+        return representation
+
+class RepairOrdenSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordenrepair-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = Lente_Orden
+        exclude = ('uuid','filtros')
+
+class RepairOrdenInfoSerializer(serializers.ModelSerializer):
+
+    uri = serializers.HyperlinkedIdentityField(
+        view_name='ordenrepair-detail',
+        lookup_field='uuid'
+    )
+    cliente = ClienteSerializer(many=False)
+
+    class Meta:
+        model = Completa_Orden
+        exclude = ('uuid',)
+
+    def to_representation(self, instance):
+        representation = super(RepairOrdenInfoSerializer, self).to_representation(instance)
+        abono = 0
+        cliente = representation.pop('cliente')
+        representation['cliente'] = {'firstname':cliente.pop('firstname'),'lastname':cliente.pop('lastname'),
+                                     'uri':cliente.pop('uri')}
+        for i in instance.abonos_repair.all():
             abono += i.pago
         representation['abono'] = abono
         return representation

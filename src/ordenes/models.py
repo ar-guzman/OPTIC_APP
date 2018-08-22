@@ -1,11 +1,9 @@
 from django.db import models
-from django.db.models.signals import post_save
-from inventario.models import Optica, Inventario, Lente, Filtro
+from django.utils import timezone
+
+from inventario.models import Optica, Inventario, Lente, Filtro,Laboratorio
 from django.contrib.auth.models import User
 import uuid as uuid_lib
-
-
-# Create your models here.
 
 
 def user_directory_path(instance, filename):
@@ -46,8 +44,6 @@ class Cliente(models.Model):
         self.lastname = self.lastname.title().strip()
         super(Cliente, self).save(*args, **kwargs)
 
-
-
 class Refraction(models.Model):
     ejeODC = models.SmallIntegerField(default=0)
     ejeOSC = models.SmallIntegerField(default=0)
@@ -75,6 +71,7 @@ class Refraction(models.Model):
     propia = models.BooleanField(default=True)
     fecha = models.DateField(auto_now_add=True)
     orden = models.PositiveIntegerField(default=0)
+    tipo = models.CharField(max_length=1,default="C")
 
 class Aro_Orden(models.Model):
     """
@@ -106,7 +103,8 @@ class Aro_Orden(models.Model):
         default=uuid_lib.uuid4,
         editable=False
     )
-
+    class Meta:
+        ordering = ['-fecha']
 
 class Abono_Aro(models.Model):
     """
@@ -125,6 +123,7 @@ class Completa_Orden(models.Model):
     usuario = models.ForeignKey(User,on_delete=models.PROTECT)
     inventario = models.ForeignKey(Inventario, on_delete=models.PROTECT)
     lente = models.ForeignKey(Lente, on_delete=models.PROTECT,related_name='lente')
+    laboratorio = models.ForeignKey(Laboratorio,on_delete=models.PROTECT, related_name='laboratorio_completa',null=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
     filtros = models.ManyToManyField(Filtro, related_name='filtros')
     offline_id = models.IntegerField(null=True)
@@ -158,5 +157,78 @@ class Abono_Completa(models.Model):
     tipo = models.PositiveSmallIntegerField(default=1)
     pago = models.DecimalField(max_digits=9,decimal_places=2,default=0)
     orden = models.ForeignKey(Completa_Orden, related_name='abonos_completa', on_delete=models.PROTECT)
+    fecha = models.DateField(default=timezone.now)
+    active = models.BooleanField(default=True)
+
+class Lente_Orden(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    lente = models.ForeignKey(Lente, on_delete=models.PROTECT, related_name='lente_lente')
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
+    filtros = models.ManyToManyField(Filtro, related_name='lente_filtros')
+    laboratorio = models.ForeignKey(Laboratorio, on_delete=models.PROTECT, related_name='laboratorio_lente', null=True)
+    offline_id = models.IntegerField(null=True)
+    costolente = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    status = models.PositiveSmallIntegerField(default=0)
+    pagado = models.PositiveSmallIntegerField(default=0)
+    # discount
+    observaciones = models.CharField(max_length=255, blank=True)
+    notas = models.CharField(max_length=1023, blank=True)
+    fecha = models.DateField(auto_now_add=True)
+    entrega = models.DateTimeField()
+    uuid = models.UUIDField(
+        db_index=True,
+        default=uuid_lib.uuid4,
+        editable=False
+    )
+
+    class Meta:
+        ordering = ['-fecha']
+
+class Abono_Lente(models.Model):
+    """
+    tipo
+        0 = cheque
+        1 = efectivo
+        2 = tarjeta
+    """
+    tipo = models.PositiveSmallIntegerField(default=1)
+    pago = models.DecimalField(max_digits=9,decimal_places=2,default=0)
+    orden = models.ForeignKey(Lente_Orden, related_name='abonos_lente', on_delete=models.PROTECT)
+    fecha = models.DateField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+
+class Repair_Orden(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    aro = models.CharField(max_length=123)
+    offline_id = models.IntegerField(null=True)
+    total = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    status = models.PositiveSmallIntegerField(default=0)
+    pagado = models.PositiveSmallIntegerField(default=0)
+
+    # discount
+    observaciones = models.CharField(max_length=255, blank=True)
+    notas = models.CharField(max_length=1023, blank=True)
+    fecha = models.DateField(auto_now_add=True)
+    entrega = models.DateTimeField()
+    uuid = models.UUIDField(
+        db_index=True,
+        default=uuid_lib.uuid4,
+        editable=False
+    )
+
+    class Meta:
+        ordering = ['-fecha']
+
+class Abono_Repair(models.Model):
+    """
+    tipo
+        0 = cheque
+        1 = efectivo
+        2 = tarjeta
+    """
+    tipo = models.PositiveSmallIntegerField(default=1)
+    pago = models.DecimalField(max_digits=9,decimal_places=2,default=0)
+    orden = models.ForeignKey(Repair_Orden, related_name='abonos_repair', on_delete=models.PROTECT)
     fecha = models.DateField(auto_now_add=True)
     active = models.BooleanField(default=True)
